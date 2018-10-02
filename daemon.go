@@ -86,7 +86,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	} else if header.SType&Ack != 0 {
 		stop := PingAckTimeout[header.SSeq-1].Stop()
 		if stop {
-			fmt.Printf("ACK: %d\n", header.SSeq)
+			fmt.Printf("ACK [%s]: %d\n", addr.IP.String(), header.SSeq)
 			delete(PingAckTimeout, header.SSeq-1)
 		}
 	}
@@ -112,7 +112,7 @@ func ping(addr string) {
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
 	udpSend(addr, binBuffer.Bytes())
-	fmt.Printf("Ping: %d\n", seq)
+	fmt.Printf("Ping [%s]: %d\n", addr, seq)
 
 	timer := time.NewTimer(time.Second)
 	PingAckTimeout[uint16(seq)] = timer
