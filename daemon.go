@@ -93,7 +93,7 @@ func ack(addr string, seq uint16) {
 	var binBuffer bytes.Buffer
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
-	udpSend(addr, binBuffer.Bytes())
+	udpSend(addr+Port, binBuffer.Bytes())
 }
 
 func ping(addr string) {
