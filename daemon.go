@@ -30,6 +30,8 @@ type SSMSHeader struct {
 	SZero uint8
 }
 
+var PingAckTimeout map[uint16]*time.Timer
+
 //type SSMSEntry struct {
 
 // A trick to simply get local IP address
@@ -82,7 +84,10 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	if header.SType&Ping != 0 {
 		ack(addr.IP.String(), header.SSeq)
 	} else if header.SType&Ack != 0 {
-		fmt.Printf("ACK: %d\n", header.SSeq)
+		stop := PingAckTimeout[header.SSeq-1].Stop()
+		if stop {
+			fmt.Printf("ACK: %d\n", header.SSeq)
+		}
 	}
 
 }
@@ -107,10 +112,18 @@ func ping(addr string) {
 
 	udpSend(addr, binBuffer.Bytes())
 	fmt.Printf("Ping: %d\n", seq)
+
+	timer := time.NewTimer(time.Second)
+	PingAckTimeout[uint16(seq)] = timer
+	go func() {
+		<-PingAckTimeout[uint16(seq)].C
+		fmt.Println("Timeout ", seq)
+	}()
 }
 
 func main() {
 	fmt.Println(getLocalIP())
+	PingAckTimeout = make(map[uint16]*time.Timer)
 	udpDaemon()
 	for {
 		ping("10.193.185.82" + Port)
