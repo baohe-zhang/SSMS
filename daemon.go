@@ -105,8 +105,8 @@ func ping(addr string) {
 	var binBuffer bytes.Buffer
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
-	fmt.Printf("Ping: %d\n", seq)
 	udpSend(addr, binBuffer.Bytes())
+	fmt.Printf("Ping: %d\n", seq)
 }
 
 func main() {
