@@ -21,6 +21,7 @@ const (
 	MemUpdateJoin    = 0x01 << 7
 	IntroducerIP     = " "
 	Port             = ":6666"
+	DetectPeriod     = 500 * time.Millisecond
 )
 
 type SSMSHeader struct {
@@ -78,7 +79,21 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	err = binary.Read(buf, binary.BigEndian, &header)
 	printError(err)
 
-	fmt.Println(header.SSeq, addr.String())
+	if header.SType&Ping == 0x01 {
+		ack(addr.IP.String(), header.SSeq)
+	} else if header.SType&Ack == 0x01 {
+		fmt.Println(addr.IP)
+		fmt.Printf("ACK: %d", header.SSeq)
+	}
+
+}
+
+func ack(addr string, seq uint16) {
+	packet := SSMSHeader{Ack, seq + 1, 0}
+	var binBuffer bytes.Buffer
+	binary.Write(&binBuffer, binary.BigEndian, packet)
+
+	udpSend(addr, binBuffer.Bytes())
 }
 
 func ping(addr string) {
