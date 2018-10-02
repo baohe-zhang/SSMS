@@ -1,22 +1,69 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
+	"time"
 )
+
+const (
+	Ping             = 0x01
+	Ack              = 0x01 << 1
+	MemUpdate        = 0x01 << 2
+	MemInit          = 0x01 << 3
+	MemUpdateSuspect = 0x01 << 4
+	MemUpdateAlive   = 0x01 << 5
+	MemUpdateLeave   = 0x01 << 6
+	MemUpdateJoin    = 0x01 << 7
+	IntroducerIP     = " "
+	Port             = ":6666"
+)
+
+type SSMSHeader struct {
+	SType uint8
+	SSeq  uint16
+	SZero uint8
+}
+
+//type SSMSEntry struct {
+
+// A trick to simply get local IP address
+func getLocalIP() net.IP {
+	dial, err := net.Dial("udp", "8.8.8.8:80")
+	printError(err)
+	localAddr := dial.LocalAddr().(*net.UDPAddr)
+	dial.Close()
+
+	return localAddr.IP
+}
+
+// UDP send
+func udpSend(addr string, packet []byte) {
+	conn, err := net.Dial("udp", addr)
+	printError(err)
+	defer conn.Close()
+
+	conn.Write(packet)
+}
 
 // UDP Daemon loop task
 func udpDaemon() {
-	serverAddr := ":3666"
+	serverAddr := Port
 	udpAddr, err := net.ResolveUDPAddr("udp4", serverAddr)
 	printError(err)
 	// Listen the request from client
 	listen, err := net.ListenUDP("udp", udpAddr)
 	printError(err)
-	for {
-		go udpDaemonHandle(listen)
-	}
+
+	go func() {
+		for {
+			udpDaemonHandle(listen)
+		}
+	}()
 }
 
 func udpDaemonHandle(connect *net.UDPConn) {
@@ -25,12 +72,35 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	n, addr, err := connect.ReadFromUDP(buffer)
 	printError(err)
 
-	data := string(buffer[:n])
-	fmt.Println(data, addr.String())
+	data := buffer[:n]
+	var header SSMSHeader
+	buf := bytes.NewReader(data)
+	err = binary.Read(buf, binary.BigEndian, &header)
+	printError(err)
+
+	fmt.Println(header.SSeq, addr.String())
+}
+
+func ping(addr string) {
+	// Source for genearting random number
+	randSource := rand.NewSource(time.Now().UnixNano())
+	randGen := rand.New(randSource)
+	seq := randGen.Intn(0x01<<15 - 2)
+
+	packet := SSMSHeader{Ping, uint16(seq), 0}
+	var binBuffer bytes.Buffer
+	binary.Write(&binBuffer, binary.BigEndian, packet)
+
+	udpSend(addr, binBuffer.Bytes())
 }
 
 func main() {
-	go udpDaemon()
+	fmt.Println(getLocalIP())
+	udpDaemon()
+	for {
+		ping("10.193.185.82" + Port)
+		time.Sleep(time.Second)
+	}
 }
 
 // Helper function to print the err in process
