@@ -87,6 +87,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 		stop := PingAckTimeout[header.SSeq-1].Stop()
 		if stop {
 			fmt.Printf("ACK: %d\n", header.SSeq)
+			delete(PingAckTimeout, header.SSeq-1)
 		}
 	}
 
@@ -118,6 +119,7 @@ func ping(addr string) {
 	go func() {
 		<-PingAckTimeout[uint16(seq)].C
 		fmt.Println("Timeout ", seq)
+		delete(PingAckTimeout, uint16(seq))
 	}()
 }
 
