@@ -79,11 +79,10 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	err = binary.Read(buf, binary.BigEndian, &header)
 	printError(err)
 
-	if header.SType&Ping == 0x01 {
+	if header.SType&Ping != 0 {
 		ack(addr.IP.String(), header.SSeq)
-	} else if header.SType&Ack == 0x01 {
-		fmt.Println(addr.IP)
-		fmt.Printf("ACK: %d", header.SSeq)
+	} else if header.SType&Ack != 0 {
+		fmt.Printf("ACK: %d\n", header.SSeq)
 	}
 
 }
@@ -106,6 +105,7 @@ func ping(addr string) {
 	var binBuffer bytes.Buffer
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
+	fmt.Printf("Ping: %d\n", seq)
 	udpSend(addr, binBuffer.Bytes())
 }
 
@@ -114,7 +114,7 @@ func main() {
 	udpDaemon()
 	for {
 		ping("10.193.185.82" + Port)
-		time.Sleep(time.Second)
+		time.Sleep(DetectPeriod)
 	}
 }
 
