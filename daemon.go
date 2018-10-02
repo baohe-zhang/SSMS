@@ -19,20 +19,26 @@ const (
 	MemUpdateAlive   = 0x01 << 5
 	MemUpdateLeave   = 0x01 << 6
 	MemUpdateJoin    = 0x01 << 7
-	IntroducerIP     = " "
+	IntroducerIP     = ""
 	Port             = ":6666"
 	DetectPeriod     = 500 * time.Millisecond
 )
 
 type SSMSHeader struct {
-	SType uint8
-	SSeq  uint16
-	SZero uint8
+	Type uint8
+	Seq  uint16
+	Zero uint8
+}
+
+type SSMSMember struct {
+	Timestamp uint32
+	IP        uint32
+	State     uint32
 }
 
 var PingAckTimeout map[uint16]*time.Timer
 
-//type SSMSEntry struct {
+var LocalIP string
 
 // A trick to simply get local IP address
 func getLocalIP() net.IP {
@@ -42,6 +48,14 @@ func getLocalIP() net.IP {
 	dial.Close()
 
 	return localAddr.IP
+}
+
+// Start the membership service and join in the group
+func startService() {
+	LocalIP = getLocalIP().String()
+	if LocalIP == IntroducerIP {
+
+	}
 }
 
 // UDP send
@@ -81,13 +95,13 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	err = binary.Read(buf, binary.BigEndian, &header)
 	printError(err)
 
-	if header.SType&Ping != 0 {
-		ack(addr.IP.String(), header.SSeq)
-	} else if header.SType&Ack != 0 {
-		stop := PingAckTimeout[header.SSeq-1].Stop()
+	if header.Type&Ping != 0 {
+		ack(addr.IP.String(), header.Seq)
+	} else if header.Type&Ack != 0 {
+		stop := PingAckTimeout[header.Seq-1].Stop()
 		if stop {
-			fmt.Printf("ACK [%s]: %d\n", addr.IP.String(), header.SSeq)
-			delete(PingAckTimeout, header.SSeq-1)
+			fmt.Printf("ACK [%s]: %d\n", addr.IP.String(), header.Seq)
+			delete(PingAckTimeout, header.Seq-1)
 		}
 	}
 
@@ -123,8 +137,8 @@ func ping(addr string) {
 	}()
 }
 
+// Main func
 func main() {
-	fmt.Println(getLocalIP())
 	PingAckTimeout = make(map[uint16]*time.Timer)
 	udpDaemon()
 	for {
