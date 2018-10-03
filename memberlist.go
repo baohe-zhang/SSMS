@@ -34,13 +34,13 @@ func (ml *MemberList) Retrieve(ts uint64, ip uint32) Member{
 	}
 }
 
-func (ml *MemberList) Insert(ts uint64, ip uint32, state uint8) {
+func (ml *MemberList) Insert(m *Member) {
 	// Resize when needed
-	// if ml.size == len(ml.Members) {
-	// 	ml.resize(ml.size * 2)
-	// }
+	if ml.size == len(ml.Members) {
+		ml.Resize(ml.size * 2)
+	}
 	// Insert new member
-	ml.Members[ml.size] = &Member{ts, ip, state}
+	ml.Members[ml.size] = m
 	ml.size += 1
 }
 
@@ -75,23 +75,58 @@ func (ml *MemberList) Select(ts uint64, ip uint32) int {
 	return -1
 }
 
-// func (ml *MemberList) Resize(capacity int)
+func (ml *MemberList) Resize(capacity int) {
+	members := make([]*Member, capacity)
+	// Copy arrays
+	for idx := 0; idx < ml.size; idx += 1 {
+		members[idx] = ml.Members[idx]
+	}
+	ml.Members = members
+}
+
+func (ml *MemberList) PrintMemberList() {
+	fmt.Printf("SIZE: %d, CAPACITY: %d\n", ml.size, len(ml.Members))
+	for idx := 0; idx < ml.size; idx +=1 {
+		m := ml.Members[idx]
+		fmt.Printf("idx: %d, TS: %d, IP: %d, ST: %d\n", idx, 
+			m.TimeStamp, m.IP, m.State)
+	}
+	fmt.Printf("\n")
+}
 
 
 // Test client
-// func main() {
-// 	ml := NewMemberList(10)
-// 	ml.Insert(0, 0 ,0)
-// 	ml.Insert(1, 2, 3)
-// 	ml.Insert(3, 2, 1)
-// 	ml.Delete(3, 2)
-// 	ml.Insert(4, 5, 5)
-// 	ml.Insert(8, 2, 1)
-// 	ml.Insert(7, 5, 5)
-// 	x := ml.Retrieve(1, 2)
-// 	fmt.Printf("state: %d\n", x.State)
-// 	fmt.Printf("size: %d\n", ml.Size())
-// }
+func main() {
+	ml := NewMemberList(1)
+
+	m1 := Member{1, 1, 1}
+	m2 := Member{2, 2, 2}
+	m3 := Member{3, 3, 3}
+	m4 := Member{4, 4, 4}
+	m5 := Member{5, 5, 5}
+	m6 := Member{6, 6, 6}
+
+
+	ml.Insert(&m1)
+	ml.PrintMemberList()
+	ml.Insert(&m2)
+	ml.PrintMemberList()
+	ml.Insert(&m3)
+	ml.PrintMemberList()
+	ml.Delete(3, 3)
+	ml.PrintMemberList()
+	ml.Insert(&m4)
+	ml.PrintMemberList()
+	ml.Insert(&m5)
+	ml.PrintMemberList()
+	ml.Insert(&m6)
+	ml.PrintMemberList()
+	x := ml.Retrieve(2, 2)
+	fmt.Printf("state: %d\n", x.State)
+	ml.Update(2, 2, 4)
+	x = ml.Retrieve(2, 2)
+	fmt.Printf("state: %d\n", x.State)
+}
 
 
 
