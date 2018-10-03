@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
+	// "log"
 	"math/rand"
 	"net"
 	"os"
@@ -24,7 +24,7 @@ const (
 	StateSuspect     = 0x01 << 1
 	StateMonit       = 0x01 << 2
 	StateIntro       = 0x01 << 3
-	IntroducerIP     = ""
+	IntroducerIP     = "8.8.8.8"
 	Port             = ":6666"
 	DetectPeriod     = 500 * time.Millisecond
 )
@@ -39,8 +39,6 @@ var init_timer time.Timer
 var PingAckTimeout map[uint16]*time.Timer
 var CurrentEntry *Member
 var CurrentList *MemberList
-var Logger *log.Logger
-
 var LocalIP string
 
 // A trick to simply get local IP address
@@ -66,26 +64,28 @@ func int2ip(binip uint32) net.IP {
 
 // Start the membership service and join in the group
 func startService() bool {
-	state := StateAlive
 
 	// Create a new log file or append to exit file
-	file, err := os.OpenFile(LocalIP+".log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
-	if err != nil {
-		fmt.Println("[Error] Open or Create log file failed")
-		return false
-	}
-	logPrefix := "[" + LocalIP + "]: "
-	Logger = log.New(file, logPrefix, log.Ldate|log.Lmicroseconds|log.Lshortfile)
+	// file, err := os.OpenFile(LocalIP+".log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
+	// if err != nil {
+	// 	fmt.Println("[Error] Open or Create log file failed")
+	// 	return false
+	// }
+	// logPrefix := "[" + LocalIP + "]: "
+	// fmt = log.New(file, logPrefix, log.Ldate|log.Lmicroseconds|log.Lshortfile)
 
 	LocalIP = getLocalIP().String()
 	timestamp := time.Now().UnixNano()
+	state := StateAlive
 	CurrentEntry = &Member{uint64(timestamp), ip2int(getLocalIP()), uint8(state)}
 	CurrentList = NewMemberList(10)
 	CurrentList.Insert(CurrentEntry)
+
 	if LocalIP == IntroducerIP {
 		CurrentEntry.State |= (StateIntro | StateMonit)
 	} else {
-
+		// New member, send Init Request to the introducer
+		initRequest(CurrentEntry)
 	}
 
 	return true
@@ -166,7 +166,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 		// Receive Ack, stop ping timer
 		stop := PingAckTimeout[header.Seq-1].Stop()
 		if stop {
-			Logger.Printf("RECEIVE ACK [%s]: %d\n", addr.IP.String(), header.Seq)
+			fmt.Printf("RECEIVE ACK [%s]: %d\n", addr.IP.String(), header.Seq)
 			delete(PingAckTimeout, header.Seq-1)
 		}
 
@@ -174,7 +174,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 		if header.Type&MemInitReply != 0 {
 			stop := init_timer.Stop()
 			if stop {
-				Logger.Printf("RECEIVE INIT REPLY FROM [%s]: %d\n", addr.IP.String(), header.Seq)
+				fmt.Printf("RECEIVE INIT REPLY FROM [%s]: %d\n", addr.IP.String(), header.Seq)
 			}
 
 			// Retrive data from Init Reply and store them into the memberlist
@@ -199,6 +199,8 @@ func initReply(addr string, seq uint16, payload []byte) {
 	buf := bytes.NewReader(payload)
 	err := binary.Read(buf, binary.BigEndian, &member)
 	printError(err)
+	// Update state of the new member
+	// ,,,
 	CurrentList.Insert(&member)
 
 	// Put the entire memberlist to the Init Reply's payload
@@ -220,13 +222,13 @@ func initRequest(member *Member) {
 	binary.Write(&binBuffer, binary.BigEndian, member)
 
 	// Send piggyback Init Request
-	pingWithPayload(IntroducerIP, binBuffer.Bytes(), MemInitRequest)
+	pingWithPayload(IntroducerIP + Port, binBuffer.Bytes(), MemInitRequest)
 
 	// Start Init timer, if expires, exit process
-	init_timer := time.NewTimer(5 * time.Second)
+	init_timer := time.NewTimer(2 * time.Second)
 	go func() {
 		<-init_timer.C
-		Logger.Printf("INIT %s TIMEOUT, PROCESS EXIT.", IntroducerIP)
+		fmt.Printf("INIT %s TIMEOUT, PROCESS EXIT.\n", IntroducerIP)
 		os.Exit(1)
 	}()
 }
@@ -264,13 +266,13 @@ func pingWithPayload(addr string, payload []byte, flag uint8) {
 	} else {
 		udpSend(addr, binBuffer.Bytes())
 	}
-	Logger.Printf("PING [%s]: %d\n", addr, seq)
+	fmt.Printf("PING [%s]: %d\n", addr, seq)
 
 	timer := time.NewTimer(time.Second)
 	PingAckTimeout[uint16(seq)] = timer
 	go func() {
 		<-PingAckTimeout[uint16(seq)].C
-		Logger.Printf("PING [%s]: %d TIMEOUT\n", addr, seq)
+		fmt.Printf("PING [%s]: %d TIMEOUT\n", addr, seq)
 		delete(PingAckTimeout, uint16(seq))
 	}()
 }
@@ -282,6 +284,9 @@ func ping(addr string) {
 // Main func
 func main() {
 	PingAckTimeout = make(map[uint16]*time.Timer)
+	if startService() == true {
+		fmt.Printf("START SERVICE\n")
+	}
 	udpDaemon()
 	for {
 		ping("10.193.185.82" + Port)
@@ -292,6 +297,6 @@ func main() {
 // Helper function to print the err in process
 func printError(err error) {
 	if err != nil {
-		Logger.Println("[ERROR]", err.Error())
+		fmt.Println("[ERROR]", err.Error())
 	}
 }

@@ -96,7 +96,7 @@ func (ml *MemberList) PrintMemberList() {
 	fmt.Printf("SIZE: %d, CAPACITY: %d\n", ml.size, len(ml.Members))
 	for idx := 0; idx < ml.size; idx +=1 {
 		m := ml.Members[idx]
-		fmt.Printf("idx: %d, TS: %d, IP: %d, ST: %d\n", idx, 
+		fmt.Printf("idx: %d, TS: %d, IP: %d, ST: %b\n", idx, 
 			m.TimeStamp, m.IP, m.State)
 	}
 	fmt.Printf("\n")
