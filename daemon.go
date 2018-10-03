@@ -222,7 +222,7 @@ func initReply(addr string, seq uint16, payload []byte) {
 	}
 
 	// DEBUG PRINTLIST
-	CurrentList.PrintMemberList()
+	fmt.Printf("len of payload before send reply: %d\n", len(binBuffer.Bytes()))
 
 	// Send pigggback Init Reply
 	ackWithPayload(addr, seq, binBuffer.Bytes(), MemInitReply)
