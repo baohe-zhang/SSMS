@@ -24,7 +24,7 @@ const (
 	StateSuspect     = 0x01 << 1
 	StateMonit       = 0x01 << 2
 	StateIntro       = 0x01 << 3
-	IntroducerIP     = "8.8.8.8"
+	IntroducerIP     = "10.194.16.24"
 	Port             = ":6666"
 	DetectPeriod     = 500 * time.Millisecond
 )
@@ -35,7 +35,7 @@ type Header struct {
 	Zero uint8
 }
 
-var init_timer time.Timer
+var init_timer *time.Timer
 var PingAckTimeout map[uint16]*time.Timer
 var CurrentEntry *Member
 var CurrentList *MemberList
@@ -142,8 +142,10 @@ func udpDaemonHandle(connect *net.UDPConn) {
 		// Check whether this ping carries Init Request
 		if header.Type&MemInitRequest != 0 {
 			// Handle Init Request
+			fmt.Printf("NEW MEMBER %s JOIN\n", addr.IP.String())
 			initReply(addr.IP.String(), header.Seq, payload)
 
+			
 		} else if header.Type&MemUpdateSuspect != 0 {
 			fmt.Printf("handle suspect\n")
 		} else if header.Type&MemUpdateResume != 0 {
@@ -225,7 +227,7 @@ func initRequest(member *Member) {
 	pingWithPayload(IntroducerIP + Port, binBuffer.Bytes(), MemInitRequest)
 
 	// Start Init timer, if expires, exit process
-	init_timer := time.NewTimer(2 * time.Second)
+	init_timer = time.NewTimer(2 * time.Second)
 	go func() {
 		<-init_timer.C
 		fmt.Printf("INIT %s TIMEOUT, PROCESS EXIT.\n", IntroducerIP)
@@ -289,7 +291,7 @@ func main() {
 	}
 	udpDaemon()
 	for {
-		ping("10.193.185.82" + Port)
+		ping("10.194.16.24" + Port)
 		time.Sleep(DetectPeriod)
 	}
 }
