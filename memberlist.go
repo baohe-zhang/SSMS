@@ -25,9 +25,17 @@ func (ml *MemberList) Size() int {
 	return ml.size
 }
 
-func (ml *MemberList) Retrieve(ts uint64, ip uint32) Member{
+func (ml *MemberList) Retrieve(ts uint64, ip uint32) Member {
 	idx := ml.Select(ts, ip)
 	if idx > -1 {
+		return *ml.Members[idx]
+	} else {
+		panic("[ERROR]: invalid retrieve")
+	}
+}
+
+func (ml *MemberList) RetrieveByIdx(idx int) Member {
+	if idx < ml.size && idx > -1 {
 		return *ml.Members[idx]
 	} else {
 		panic("[ERROR]: invalid retrieve")
@@ -96,37 +104,37 @@ func (ml *MemberList) PrintMemberList() {
 
 
 // Test client
-func main() {
-	ml := NewMemberList(1)
+// func main() {
+// 	ml := NewMemberList(1)
 
-	m1 := Member{1, 1, 1}
-	m2 := Member{2, 2, 2}
-	m3 := Member{3, 3, 3}
-	m4 := Member{4, 4, 4}
-	m5 := Member{5, 5, 5}
-	m6 := Member{6, 6, 6}
+// 	m1 := Member{1, 1, 1}
+// 	m2 := Member{2, 2, 2}
+// 	m3 := Member{3, 3, 3}
+// 	m4 := Member{4, 4, 4}
+// 	m5 := Member{5, 5, 5}
+// 	m6 := Member{6, 6, 6}
 
 
-	ml.Insert(&m1)
-	ml.PrintMemberList()
-	ml.Insert(&m2)
-	ml.PrintMemberList()
-	ml.Insert(&m3)
-	ml.PrintMemberList()
-	ml.Delete(3, 3)
-	ml.PrintMemberList()
-	ml.Insert(&m4)
-	ml.PrintMemberList()
-	ml.Insert(&m5)
-	ml.PrintMemberList()
-	ml.Insert(&m6)
-	ml.PrintMemberList()
-	x := ml.Retrieve(2, 2)
-	fmt.Printf("state: %d\n", x.State)
-	ml.Update(2, 2, 4)
-	x = ml.Retrieve(2, 2)
-	fmt.Printf("state: %d\n", x.State)
-}
+// 	ml.Insert(&m1)
+// 	ml.PrintMemberList()
+// 	ml.Insert(&m2)
+// 	ml.PrintMemberList()
+// 	ml.Insert(&m3)
+// 	ml.PrintMemberList()
+// 	ml.Delete(3, 3)
+// 	ml.PrintMemberList()
+// 	ml.Insert(&m4)
+// 	ml.PrintMemberList()
+// 	ml.Insert(&m5)
+// 	ml.PrintMemberList()
+// 	ml.Insert(&m6)
+// 	ml.PrintMemberList()
+// 	x := ml.Retrieve(2, 2)
+// 	fmt.Printf("state: %d\n", x.State)
+// 	ml.Update(2, 2, 4)
+// 	x = ml.Retrieve(2, 2)
+// 	fmt.Printf("state: %d\n", x.State)
+// }
 
 
 

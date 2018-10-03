@@ -14,8 +14,8 @@ import (
 const (
 	Ping             = 0x01
 	Ack              = 0x01 << 1
-	MemUpdate        = 0x01 << 2
-	MemInit          = 0x01 << 3
+	MemInitRequest   = 0x01 << 2
+	MemInitReply     = 0x01 << 3
 	MemUpdateSuspect = 0x01 << 4
 	MemUpdateResume  = 0x01 << 5
 	MemUpdateLeave   = 0x01 << 6
@@ -35,6 +35,7 @@ type Header struct {
 	Zero uint8
 }
 
+var init_timer time.Timer
 var PingAckTimeout map[uint16]*time.Timer
 var CurrentEntry *Member
 var CurrentList *MemberList
@@ -67,7 +68,7 @@ func startService() bool {
 
 	LocalIP = getLocalIP().String()
 	timestamp := time.Now().UnixNano()
-	CurrentEntry = Member{uint64(timestamp), LocalIP, state}
+	CurrentEntry = &Member{uint64(timestamp), uint32(LocalIP), uint8(state)}
 	CurrentList = NewMemberList(10)
 	CurrentList.Insert(CurrentEntry)
 	if LocalIP == IntroducerIP {
@@ -110,27 +111,113 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	n, addr, err := connect.ReadFromUDP(buffer)
 	printError(err)
 
-	data := buffer[:n]
+	// Seperate header and payload
+	const HeaderLength = 4  // Header Length 4 bytes
+
+	// Read header
+	headerBinData := buffer[:HeaderLength]
 	var header Header
-	buf := bytes.NewReader(data)
+	buf := bytes.NewReader(headerBinData)
 	err = binary.Read(buf, binary.BigEndian, &header)
 	printError(err)
 
+	// Read payload
+	payload := buffer[HeaderLength:] 
+
+
 	if header.Type&Ping != 0 {
-		ack(addr.IP.String(), header.Seq)
+		// Receive Ping, check whether this pring carrie flags
+
+		// Check whether this ping carries Init Request
+		if header.Type&MemInitRequest != 0 {
+			// Handle Init Request
+			initReply(addr.IP.String(), header.Seq, payload)
+
+		} else if header.Type&MemUpdateSuspect != 0 {
+			fmt.Printf("receive suspect\n")
+		} else if header.Type&MemUpdateResume != 0 {
+			fmt.Printf("receive resume\n")
+		} else if header.Type&MemUpdateLeave != 0 {
+			fmt.Printf("receive leave\n")
+		} else if header.Type&MemUpdateJoin != 0 {
+			fmt.Printf("receive join\n")
+		} else {
+			// Ping with no payload, 
+			// No handling payload needed
+			// Check whether update sending needed
+			// If no, simply reply with ack
+			ack(addr.IP.String(), header.Seq)
+		}
+
+
 	} else if header.Type&Ack != 0 {
+
+		// Receive Ack, stop ping timer
 		stop := PingAckTimeout[header.Seq-1].Stop()
 		if stop {
-			Logger.Printf("ACK [%s]: %d\n", addr.IP.String(), header.Seq)
+			Logger.Printf("RECEIVE ACK [%s]: %d\n", addr.IP.String(), header.Seq)
 			delete(PingAckTimeout, header.Seq-1)
 		}
-	}
 
+		// Ack carries Init Reply, stop init timer
+		if header.Type&MemInitReply != 0 {
+			stop := init_timer.Stop()
+			if stop {
+				Logger.Printf("RECEIVE INIT REPLY FROM [%s]: %d\n", addr.IP.String(), header.Seq)
+			}
+
+			// Retrive data from Init Reply and store them into the memberlist
+
+		} else if header.Type&MemUpdateSuspect != 0 {
+			fmt.Printf("receive suspect\n")
+		} else if header.Type&MemUpdateResume != 0 {
+			fmt.Printf("receive resume\n")
+		} else if header.Type&MemUpdateLeave != 0 {
+			fmt.Printf("receive leave\n")
+		} else if header.Type&MemUpdateJoin != 0 {
+			fmt.Printf("receive join\n")
+		} else {
+			fmt.Printf("receive pure ack\n")
+		} 
+	}
 }
 
-func join(member *Member) {
+func initReply(addr string, seq uint16, payload []byte) {
+	// Read and insert new member to the memberlist
+	var member Member
+	buf := bytes.NewReader(payload)
+	err := binary.Read(buf, binary.BigEndian, &member)
+	printError(err)
+	CurrentList.Insert(&member)
+
+	// Put the entire memberlist to the Init Reply's payload
+	var memBuffer bytes.Buffer  // Temp buf to store member's binary value
+	var binBuffer bytes.Buffer
+	for i := 0; i < CurrentList.Size(); i++ {
+		member = CurrentList.RetrieveByIdx(i)
+		binary.Write(&memBuffer, binary.BigEndian, member)
+		binBuffer.Write(memBuffer.Bytes())
+	}
+
+	// Send pigggback Init Reply
+	ackWithPayload(addr, seq, binBuffer.Bytes(), MemInitReply)
+}
+
+func initRequest(member *Member) {
+	// Construct Init Request payload
 	var binBuffer bytes.Buffer
 	binary.Write(&binBuffer, binary.BigEndian, member)
+
+	// Send piggyback Init Request
+	pingWithPayload(IntroducerIP, binBuffer.Bytes(), MemInitRequest)
+
+	// Start Init timer, if expires, exit process
+	init_timer := time.NewTimer(5 * time.Second)
+	go func() {
+		<-init_timer.C
+		Logger.Printf("INIT %s TIMEOUT, PROCESS EXIT.", IntroducerIP)
+		os.Exit(1)
+	}()
 }
 
 func ackWithPayload(addr string, seq uint16, payload []byte, flag uint8) {
@@ -164,13 +251,13 @@ func pingWithPayload(addr string, payload []byte, flag uint8) {
 	} else {
 		udpSend(addr, binBuffer.Bytes())
 	}
-	Logger.Printf("Ping [%s]: %d\n", addr, seq)
+	Logger.Printf("PING [%s]: %d\n", addr, seq)
 
 	timer := time.NewTimer(time.Second)
 	PingAckTimeout[uint16(seq)] = timer
 	go func() {
 		<-PingAckTimeout[uint16(seq)].C
-		Logger.Printf("Ping [%s]: %d timeout, no response\n", addr, seq)
+		Logger.Printf("PING [%s]: %d TIMEOUT\n", addr, seq)
 		delete(PingAckTimeout, uint16(seq))
 	}()
 }
