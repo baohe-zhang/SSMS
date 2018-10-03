@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -16,27 +17,28 @@ const (
 	MemUpdate        = 0x01 << 2
 	MemInit          = 0x01 << 3
 	MemUpdateSuspect = 0x01 << 4
-	MemUpdateAlive   = 0x01 << 5
+	MemUpdateResume  = 0x01 << 5
 	MemUpdateLeave   = 0x01 << 6
 	MemUpdateJoin    = 0x01 << 7
+	StateAlive       = 0x01
+	StateSuspect     = 0x01 << 1
+	StateMonit       = 0x01 << 2
+	StateIntro       = 0x01 << 3
 	IntroducerIP     = ""
 	Port             = ":6666"
 	DetectPeriod     = 500 * time.Millisecond
 )
 
-type SSMSHeader struct {
+type Header struct {
 	Type uint8
 	Seq  uint16
 	Zero uint8
 }
 
-type SSMSMember struct {
-	Timestamp uint32
-	IP        uint32
-	State     uint32
-}
-
 var PingAckTimeout map[uint16]*time.Timer
+var CurrentEntry *Member
+var CurrentList *MemberList
+var Logger *log.Logger
 
 var LocalIP string
 
@@ -51,11 +53,30 @@ func getLocalIP() net.IP {
 }
 
 // Start the membership service and join in the group
-func startService() {
+func startService() bool {
+	state := StateAlive
+
+	// Create a new log file or append to exit file
+	file, err := os.OpenFile(LocalIP+".log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
+	if err != nil {
+		fmt.Println("[Error] Open or Create log file failed")
+		return false
+	}
+	logPrefix := "[" + LocalIP + "]: "
+	Logger = log.New(file, logPrefix, log.Ldate|log.Lmicroseconds|log.Lshortfile)
+
 	LocalIP = getLocalIP().String()
+	timestamp := time.Now().UnixNano()
+	CurrentEntry = Member{uint64(timestamp), LocalIP, state}
+	CurrentList = NewMemberList(10)
+	CurrentList.Insert(CurrentEntry)
 	if LocalIP == IntroducerIP {
+		CurrentEntry.State |= (StateIntro | StateMonit)
+	} else {
 
 	}
+
+	return true
 }
 
 // UDP send
@@ -90,7 +111,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	printError(err)
 
 	data := buffer[:n]
-	var header SSMSHeader
+	var header Header
 	buf := bytes.NewReader(data)
 	err = binary.Read(buf, binary.BigEndian, &header)
 	printError(err)
@@ -100,41 +121,60 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	} else if header.Type&Ack != 0 {
 		stop := PingAckTimeout[header.Seq-1].Stop()
 		if stop {
-			fmt.Printf("ACK [%s]: %d\n", addr.IP.String(), header.Seq)
+			Logger.Printf("ACK [%s]: %d\n", addr.IP.String(), header.Seq)
 			delete(PingAckTimeout, header.Seq-1)
 		}
 	}
 
 }
 
-func ack(addr string, seq uint16) {
-	packet := SSMSHeader{Ack, seq + 1, 0}
+func join(member *Member) {
+}
+
+func ackWithPayload(addr string, seq uint16, payload []byte) {
+	packet := Header{Ack, seq + 1, 0}
 	var binBuffer bytes.Buffer
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
-	udpSend(addr+Port, binBuffer.Bytes())
+	if payload != nil {
+		udpSend(addr+Port, binBuffer.Bytes()+payload)
+	} else {
+		udpSend(addr+Port, binBuffer.Bytes())
+	}
 }
 
-func ping(addr string) {
+func ack(addr string, seq uint16) {
+	ackWithPayload(addr, seq, nil)
+}
+
+func pingWithPayload(addr string, payload []byte) {
 	// Source for genearting random number
 	randSource := rand.NewSource(time.Now().UnixNano())
 	randGen := rand.New(randSource)
 	seq := randGen.Intn(0x01<<15 - 2)
 
-	packet := SSMSHeader{Ping, uint16(seq), 0}
+	packet := Header{Ping, uint16(seq), 0}
 	var binBuffer bytes.Buffer
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
-	udpSend(addr, binBuffer.Bytes())
-	fmt.Printf("Ping [%s]: %d\n", addr, seq)
+	if payload != nil {
+		udpSend(addr, binBuffer.Bytes()+payload)
+	} else {
+		udpSend(addr, binBuffer.Bytes())
+	}
+	Logger.Printf("Ping [%s]: %d\n", addr, seq)
 
 	timer := time.NewTimer(time.Second)
 	PingAckTimeout[uint16(seq)] = timer
 	go func() {
 		<-PingAckTimeout[uint16(seq)].C
-		fmt.Println("Timeout ", seq)
+		Logger.Printf("Ping [%s]: %d timeout, no response\n", addr, seq)
 		delete(PingAckTimeout, uint16(seq))
 	}()
+}
+
+func ping(addr string) {
+	pintWithPayload(addr, nil)
 }
 
 // Main func
@@ -150,6 +190,6 @@ func main() {
 // Helper function to print the err in process
 func printError(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\n[ERROR]", err.Error())
+		Logger.Println("[ERROR]", err.Error())
 	}
 }
