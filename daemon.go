@@ -129,10 +129,12 @@ func udpDaemonHandle(connect *net.UDPConn) {
 }
 
 func join(member *Member) {
+	var binBuffer bytes.Buffer
+	binary.Write(&binBuffer, binary.BigEndian, member)
 }
 
-func ackWithPayload(addr string, seq uint16, payload []byte) {
-	packet := Header{Ack, seq + 1, 0}
+func ackWithPayload(addr string, seq uint16, payload []byte, flag uint8) {
+	packet := Header{Ack | flag, seq + 1, 0}
 	var binBuffer bytes.Buffer
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
@@ -144,16 +146,16 @@ func ackWithPayload(addr string, seq uint16, payload []byte) {
 }
 
 func ack(addr string, seq uint16) {
-	ackWithPayload(addr, seq, nil)
+	ackWithPayload(addr, seq, nil, 0x00)
 }
 
-func pingWithPayload(addr string, payload []byte) {
+func pingWithPayload(addr string, payload []byte, flag uint8) {
 	// Source for genearting random number
 	randSource := rand.NewSource(time.Now().UnixNano())
 	randGen := rand.New(randSource)
 	seq := randGen.Intn(0x01<<15 - 2)
 
-	packet := Header{Ping, uint16(seq), 0}
+	packet := Header{Ping | flag, uint16(seq), 0}
 	var binBuffer bytes.Buffer
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
@@ -174,7 +176,7 @@ func pingWithPayload(addr string, payload []byte) {
 }
 
 func ping(addr string) {
-	pintWithPayload(addr, nil)
+	pintWithPayload(addr, nil, 0x00)
 }
 
 // Main func
