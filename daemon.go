@@ -119,7 +119,7 @@ func udpDaemon() {
 func udpDaemonHandle(connect *net.UDPConn) {
 	// Making a buffer to accept the grep command content from client
 	buffer := make([]byte, 1024)
-	_, addr, err := connect.ReadFromUDP(buffer)
+	n, addr, err := connect.ReadFromUDP(buffer)
 	printError(err)
 
 	// Seperate header and payload
@@ -133,7 +133,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	printError(err)
 
 	// Read payload
-	payload := buffer[HeaderLength:] 
+	payload := buffer[HeaderLength:n] 
 
 
 	if header.Type&Ping != 0 {
@@ -212,11 +212,17 @@ func initReply(addr string, seq uint16, payload []byte) {
 	// Put the entire memberlist to the Init Reply's payload
 	var memBuffer bytes.Buffer  // Temp buf to store member's binary value
 	var binBuffer bytes.Buffer
-	for i := 0; i < CurrentList.Size(); i++ {
+	// DEBUG
+	fmt.Printf("list size: %d", CurrentList.Size())
+
+	for i := 0; i < CurrentList.Size(); i +=1 {
 		member = CurrentList.RetrieveByIdx(i)
 		binary.Write(&memBuffer, binary.BigEndian, member)
 		binBuffer.Write(memBuffer.Bytes())
 	}
+
+	// DEBUG PRINTLIST
+	CurrentList.PrintMemberList()
 
 	// Send pigggback Init Reply
 	ackWithPayload(addr, seq, binBuffer.Bytes(), MemInitReply)
