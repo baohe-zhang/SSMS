@@ -50,6 +50,9 @@ func (ml *MemberList) Insert(m *Member) {
 	// Insert new member
 	ml.Members[ml.size] = m
 	ml.size += 1
+
+	// Log Insert
+	fmt.Printf("List Log: New Member %d Inset", m.TimeStamp)
 }
 
 func (ml *MemberList) Delete(ts uint64, ip uint32) {

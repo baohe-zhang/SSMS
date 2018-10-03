@@ -132,15 +132,13 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	err = binary.Read(buf, binary.BigEndian, &header)
 	printError(err)
 
-	// Read payload
-	payload := buffer[HeaderLength:n] 
-
 
 	if header.Type&Ping != 0 {
-		// Receive Ping, check whether this pring carrie flags
 
 		// Check whether this ping carries Init Request
 		if header.Type&MemInitRequest != 0 {
+			// Read payload
+			payload := buffer[HeaderLength:n] 
 			// Handle Init Request
 			fmt.Printf("NEW MEMBER %s JOIN\n", addr.IP.String())
 			initReply(addr.IP.String(), header.Seq, payload)
@@ -177,6 +175,8 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			if stop {
 				fmt.Printf("RECEIVE INIT REPLY FROM [%s]: %d\n", addr.IP.String(), header.Seq)
 			}
+			// Read payload
+			payload := buffer[HeaderLength:n] 
 			// Retrive data from Init Reply and store them into the memberlist
 			handleInitReply(payload)
 
@@ -223,6 +223,7 @@ func initReply(addr string, seq uint16, payload []byte) {
 
 	// DEBUG PRINTLIST
 	fmt.Printf("len of payload before send reply: %d\n", len(binBuffer.Bytes()))
+	CurrentList.PrintMemberList()
 
 	// Send pigggback Init Reply
 	ackWithPayload(addr, seq, binBuffer.Bytes(), MemInitReply)
