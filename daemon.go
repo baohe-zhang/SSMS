@@ -145,7 +145,6 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			fmt.Printf("NEW MEMBER %s JOIN\n", addr.IP.String())
 			initReply(addr.IP.String(), header.Seq, payload)
 
-			
 		} else if header.Type&MemUpdateSuspect != 0 {
 			fmt.Printf("handle suspect\n")
 		} else if header.Type&MemUpdateResume != 0 {
@@ -169,17 +168,17 @@ func udpDaemonHandle(connect *net.UDPConn) {
 		stop := PingAckTimeout[header.Seq-1].Stop()
 		if stop {
 			fmt.Printf("RECEIVE ACK [%s]: %d\n", addr.IP.String(), header.Seq)
-			delete(PingAckTimeout, header.Seq-1)
+			delete(PingAckTimeout, header.Seq-1)	
 		}
 
-		// Ack carries Init Reply, stop init timer
 		if header.Type&MemInitReply != 0 {
+			// Ack carries Init Reply, stop init timer
 			stop := init_timer.Stop()
 			if stop {
 				fmt.Printf("RECEIVE INIT REPLY FROM [%s]: %d\n", addr.IP.String(), header.Seq)
 			}
-
 			// Retrive data from Init Reply and store them into the memberlist
+			handleInitReply(payload)
 
 		} else if header.Type&MemUpdateSuspect != 0 {
 			fmt.Printf("handle suspect\n")
@@ -193,6 +192,11 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			fmt.Printf("receive pure ack\n")
 		} 
 	}
+}
+
+func handleInitReply(payload []byte) {
+	//num := len(payload)
+	fmt.Printf("len of payload: %d", len(payload))
 }
 
 func initReply(addr string, seq uint16, payload []byte) {
