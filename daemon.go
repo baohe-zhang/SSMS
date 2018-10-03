@@ -53,6 +53,17 @@ func getLocalIP() net.IP {
 	return localAddr.IP
 }
 
+// Convert net.IP to uint32
+func ip2int(ip net.IP) uint32 {
+	return binary.BigEndian.Uint32(ip)
+}
+// Convert uint32 to net.IP 
+func int2ip(binip uint32) net.IP {
+	ip := make(net.IP, 4)
+	binary.BigEndian.PutUint32(ip, binip)
+	return ip
+}
+
 // Start the membership service and join in the group
 func startService() bool {
 	state := StateAlive
@@ -68,7 +79,7 @@ func startService() bool {
 
 	LocalIP = getLocalIP().String()
 	timestamp := time.Now().UnixNano()
-	CurrentEntry = &Member{uint64(timestamp), uint32(LocalIP), uint8(state)}
+	CurrentEntry = &Member{uint64(timestamp), ip2int(getLocalIP()), uint8(state)}
 	CurrentList = NewMemberList(10)
 	CurrentList.Insert(CurrentEntry)
 	if LocalIP == IntroducerIP {
@@ -108,7 +119,7 @@ func udpDaemon() {
 func udpDaemonHandle(connect *net.UDPConn) {
 	// Making a buffer to accept the grep command content from client
 	buffer := make([]byte, 1024)
-	n, addr, err := connect.ReadFromUDP(buffer)
+	_, addr, err := connect.ReadFromUDP(buffer)
 	printError(err)
 
 	// Seperate header and payload
@@ -134,13 +145,13 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			initReply(addr.IP.String(), header.Seq, payload)
 
 		} else if header.Type&MemUpdateSuspect != 0 {
-			fmt.Printf("receive suspect\n")
+			fmt.Printf("handle suspect\n")
 		} else if header.Type&MemUpdateResume != 0 {
-			fmt.Printf("receive resume\n")
+			fmt.Printf("handle resume\n")
 		} else if header.Type&MemUpdateLeave != 0 {
-			fmt.Printf("receive leave\n")
+			fmt.Printf("handle leave\n")
 		} else if header.Type&MemUpdateJoin != 0 {
-			fmt.Printf("receive join\n")
+			fmt.Printf("handle join\n")
 		} else {
 			// Ping with no payload, 
 			// No handling payload needed
@@ -169,13 +180,13 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			// Retrive data from Init Reply and store them into the memberlist
 
 		} else if header.Type&MemUpdateSuspect != 0 {
-			fmt.Printf("receive suspect\n")
+			fmt.Printf("handle suspect\n")
 		} else if header.Type&MemUpdateResume != 0 {
-			fmt.Printf("receive resume\n")
+			fmt.Printf("handle resume\n")
 		} else if header.Type&MemUpdateLeave != 0 {
-			fmt.Printf("receive leave\n")
+			fmt.Printf("handle leave\n")
 		} else if header.Type&MemUpdateJoin != 0 {
-			fmt.Printf("receive join\n")
+			fmt.Printf("handle join\n")
 		} else {
 			fmt.Printf("receive pure ack\n")
 		} 
@@ -226,7 +237,8 @@ func ackWithPayload(addr string, seq uint16, payload []byte, flag uint8) {
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
 	if payload != nil {
-		udpSend(addr+Port, binBuffer.Bytes()+payload)
+		binBuffer.Write(payload) // Append payload
+		udpSend(addr+Port, binBuffer.Bytes())
 	} else {
 		udpSend(addr+Port, binBuffer.Bytes())
 	}
@@ -247,7 +259,8 @@ func pingWithPayload(addr string, payload []byte, flag uint8) {
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
 	if payload != nil {
-		udpSend(addr, binBuffer.Bytes()+payload)
+		binBuffer.Write(payload) // Append payload
+		udpSend(addr, binBuffer.Bytes())
 	} else {
 		udpSend(addr, binBuffer.Bytes())
 	}
@@ -263,7 +276,7 @@ func pingWithPayload(addr string, payload []byte, flag uint8) {
 }
 
 func ping(addr string) {
-	pintWithPayload(addr, nil, 0x00)
+	pingWithPayload(addr, nil, 0x00)
 }
 
 // Main func
