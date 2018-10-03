@@ -201,24 +201,28 @@ func handleInitReply(payload []byte) {
 
 func initReply(addr string, seq uint16, payload []byte) {
 	// Read and insert new member to the memberlist
-	var member Member
+	var member *Member
 	buf := bytes.NewReader(payload)
-	err := binary.Read(buf, binary.BigEndian, &member)
+	err := binary.Read(buf, binary.BigEndian, member)
 	printError(err)
 	// Update state of the new member
 	// ,,,
-	CurrentList.Insert(&member)
+	CurrentList.Insert(member)
 
 	// Put the entire memberlist to the Init Reply's payload
 	var memBuffer bytes.Buffer  // Temp buf to store member's binary value
 	var binBuffer bytes.Buffer
 	// DEBUG
-	fmt.Printf("list size: %d", CurrentList.Size())
+	fmt.Printf("list size: %d\n", CurrentList.Size())
 
-	for i := 0; i < CurrentList.Size(); i +=1 {
+	for i := 0; i < CurrentList.Size(); i += 1 {
 		member = CurrentList.RetrieveByIdx(i)
+		// DEBUG
+		fmt.Printf("ts of %d: %d\n", i, member.TimeStamp)
+
 		binary.Write(&memBuffer, binary.BigEndian, member)
 		binBuffer.Write(memBuffer.Bytes())
+		memBuffer.Reset()  // Clear buffer
 	}
 
 	// DEBUG PRINTLIST

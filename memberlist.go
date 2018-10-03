@@ -25,18 +25,18 @@ func (ml *MemberList) Size() int {
 	return ml.size
 }
 
-func (ml *MemberList) Retrieve(ts uint64, ip uint32) Member {
+func (ml *MemberList) Retrieve(ts uint64, ip uint32) *Member {
 	idx := ml.Select(ts, ip)
 	if idx > -1 {
-		return *ml.Members[idx]
+		return ml.Members[idx]
 	} else {
 		panic("[ERROR]: invalid retrieve")
 	}
 }
 
-func (ml *MemberList) RetrieveByIdx(idx int) Member {
+func (ml *MemberList) RetrieveByIdx(idx int) *Member {
 	if idx < ml.size && idx > -1 {
-		return *ml.Members[idx]
+		return ml.Members[idx]
 	} else {
 		panic("[ERROR]: invalid retrieve")
 	}
@@ -52,7 +52,7 @@ func (ml *MemberList) Insert(m *Member) {
 	ml.size += 1
 
 	// Log Insert
-	fmt.Printf("List Log: New Member %d Inset", m.TimeStamp)
+	fmt.Printf("[LOG]: New Member %d Inset\n", m.TimeStamp)
 }
 
 func (ml *MemberList) Delete(ts uint64, ip uint32) {
