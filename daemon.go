@@ -79,10 +79,10 @@ func startService() bool {
 	state := StateAlive
 	CurrentEntry = &Member{uint64(timestamp), ip2int(getLocalIP()), uint8(state)}
 	CurrentList = NewMemberList(10)
-	CurrentList.Insert(CurrentEntry)
 
 	if LocalIP == IntroducerIP {
 		CurrentEntry.State |= (StateIntro | StateMonit)
+		CurrentList.Insert(CurrentEntry)
 	} else {
 		// New member, send Init Request to the introducer
 		initRequest(CurrentEntry)
@@ -194,10 +194,19 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	}
 }
 
+
 func handleInitReply(payload []byte) {
-	//num := len(payload)
-	fmt.Printf("len of payload: %d", len(payload))
+	num := len(payload) / 13
+	for idx := 0; idx < num; idx++ {
+		var member Member
+		buf := bytes.NewReader(payload)
+		err := binary.Read(buf, binary.BigEndian, &member)
+		printError(err)
+		// Insert existing member to the new member's list
+		CurrentList.Insert(&member)
+	}
 }
+
 
 func initReply(addr string, seq uint16, payload []byte) {
 	// Read and insert new member to the memberlist
