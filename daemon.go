@@ -35,11 +35,21 @@ type Header struct {
 	Zero uint8
 }
 
+type Update struct {
+	UpdateID uint64
+	TTL uint8
+	MemberTimeStamp uint64
+	MemberIP uint32
+	MemberState uint8
+}
+
 var init_timer *time.Timer
 var PingAckTimeout map[uint16]*time.Timer
 var CurrentEntry *Member
 var CurrentList *MemberList
 var LocalIP string
+
+var DuplicateUpdateCaches map[uint64]uint8
 
 // A trick to simply get local IP address
 func getLocalIP() net.IP {
@@ -132,25 +142,33 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	err = binary.Read(buf, binary.BigEndian, &header)
 	printError(err)
 
+	// Read payload
+	payload := buffer[HeaderLength:n] 
 
 	if header.Type&Ping != 0 {
 
 		// Check whether this ping carries Init Request
 		if header.Type&MemInitRequest != 0 {
-			// Read payload
-			payload := buffer[HeaderLength:n] 
 			// Handle Init Request
-			fmt.Printf("NEW MEMBER %s JOIN\n", addr.IP.String())
+			fmt.Printf("RECEIVE INIT REQUEST FROM [%s]: %d\n", addr.IP.String(), header.Seq)
 			initReply(addr.IP.String(), header.Seq, payload)
 
 		} else if header.Type&MemUpdateSuspect != 0 {
-			fmt.Printf("handle suspect\n")
+			fmt.Printf("handle suspect update\n")
+			handleSuspect(payload)
+
 		} else if header.Type&MemUpdateResume != 0 {
-			fmt.Printf("handle resume\n")
+			fmt.Printf("handle resume update\n")
+			handleResume(payload)
+
 		} else if header.Type&MemUpdateLeave != 0 {
-			fmt.Printf("handle leave\n")
+			fmt.Printf("handle leave update\n")
+			handleLeave(payload)
+
 		} else if header.Type&MemUpdateJoin != 0 {
-			fmt.Printf("handle join\n")
+			fmt.Printf("handle join update\n")
+			handleJoin(payload)
+
 		} else {
 			// Ping with no payload, 
 			// No handling payload needed
@@ -165,9 +183,12 @@ func udpDaemonHandle(connect *net.UDPConn) {
 		// Receive Ack, stop ping timer
 		stop := PingAckTimeout[header.Seq-1].Stop()
 		if stop {
-			fmt.Printf("RECEIVE ACK [%s]: %d\n", addr.IP.String(), header.Seq)
+			fmt.Printf("RECEIVE ACK FROM [%s]: %d\n", addr.IP.String(), header.Seq)
 			delete(PingAckTimeout, header.Seq-1)	
 		}
+
+		// Read payload
+		payload := buffer[HeaderLength:n] 
 
 		if header.Type&MemInitReply != 0 {
 			// Ack carries Init Reply, stop init timer
@@ -175,31 +196,123 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			if stop {
 				fmt.Printf("RECEIVE INIT REPLY FROM [%s]: %d\n", addr.IP.String(), header.Seq)
 			}
-			// Read payload
-			payload := buffer[HeaderLength:n] 
-			// Retrieve data from Init Reply and store them into the memberlist
 			handleInitReply(payload)
 
 		} else if header.Type&MemUpdateSuspect != 0 {
-			fmt.Printf("handle suspect\n")
+			fmt.Printf("handle suspect update\n")
+			handleSuspect(payload)
+
 		} else if header.Type&MemUpdateResume != 0 {
-			fmt.Printf("handle resume\n")
+			fmt.Printf("handle resume update\n")
+			handleResume(payload)
+
 		} else if header.Type&MemUpdateLeave != 0 {
-			fmt.Printf("handle leave\n")
+			fmt.Printf("handle leave update\n")
+			handleLeave(payload)
+
 		} else if header.Type&MemUpdateJoin != 0 {
-			fmt.Printf("handle join\n")
+			fmt.Printf("handle join update\n")
+			handleJoin(payload)
+
 		} else {
 			fmt.Printf("receive pure ack\n")
 		} 
 	}
 }
 
+// Check whether the update is duplicated
+// If duplicated, return false, else, return true and start a timer
+func isUpdateDuplicate(id uint64) bool {
+	_, ok := DuplicateUpdateCaches[id]
+	if ok {
+		fmt.Printf("[INFO]: Receive duplicated update %d\n", id)
+		return true
+	} else {
+		DuplicateUpdateCaches[id] = 1 // add to cache
+		fmt.Printf("[INFO]: Add update %d to duplicated cache table \n", id)
+		recent_update_timer := time.NewTimer(16 * time.Second) // set a delete timer
+		go func() {
+			<-recent_update_timer.C
+			_, ok := DuplicateUpdateCaches[id]
+			if ok {
+				delete(DuplicateUpdateCaches, id) // delete from cache
+				fmt.Printf("[INFO]: Delete update %d from duplicated cache table \n", id)
+			}
+		}()
+		return false
+	}
+}
+
+func sendUpdate() {
+
+}
+
+
+func handleSuspect(payload []byte) {
+	buf := bytes.NewReader(payload)
+	var update Update
+	err := binary.Read(buf, binary.BigEndian, &update)
+	printError(err)
+
+	// Retrieve update ID
+	updateID := update.UpdateID
+	if !isUpdateDuplicate(updateID) {
+		// Receive new update, handle it
+		CurrentList.Update(update.MemberTimeStamp, update.MemberIP, 
+			update.MemberState)
+	}
+}
+
+func handleResume(payload []byte) {
+	buf := bytes.NewReader(payload)
+	var update Update
+	err := binary.Read(buf, binary.BigEndian, &update)
+	printError(err)
+
+	// Retrieve update ID
+	updateID := update.UpdateID
+	if !isUpdateDuplicate(updateID) {
+		// Receive new update, handle it
+		CurrentList.Update(update.MemberTimeStamp, update.MemberIP, 
+			update.MemberState)
+	}
+}
+
+func handleLeave(payload []byte) {
+	buf := bytes.NewReader(payload)
+	var update Update
+	err := binary.Read(buf, binary.BigEndian, &update)
+	printError(err)
+
+	// Retrieve update ID
+	updateID := update.UpdateID
+	if !isUpdateDuplicate(updateID) {
+		// Receive new update, handle it
+		CurrentList.Delete(update.MemberTimeStamp, update.MemberIP)
+	}
+}
+
+func handleJoin(payload []byte) {
+	buf := bytes.NewReader(payload)
+	var update Update
+	err := binary.Read(buf, binary.BigEndian, &update)
+	printError(err)
+
+	// Retrieve update ID
+	updateID := update.UpdateID
+	if !isUpdateDuplicate(updateID) {
+		// Receive new update, handle it
+		CurrentList.Insert(&Member{update.MemberTimeStamp, update.MemberIP, 
+			update.MemberState})
+	}
+}
+
 
 func handleInitReply(payload []byte) {
-	num := len(payload) / 13
+	num := len(payload) / 13  // 13 bytes per member
+	buf := bytes.NewReader(payload)
 	for idx := 0; idx < num; idx++ {
 		var member Member
-		buf := bytes.NewReader(payload)
 		err := binary.Read(buf, binary.BigEndian, &member)
 		printError(err)
 		// Insert existing member to the new member's list
@@ -305,6 +418,7 @@ func ping(addr string) {
 
 // Main func
 func main() {
+	DuplicateUpdateCaches = make(map[uint64]uint8)
 	PingAckTimeout = make(map[uint16]*time.Timer)
 	if startService() == true {
 		fmt.Printf("START SERVICE\n")

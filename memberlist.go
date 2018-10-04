@@ -18,6 +18,7 @@ type Member struct {
 func NewMemberList(capacity int) *MemberList {
 	ml := MemberList{}
 	ml.Members = make([]*Member, capacity)
+	fmt.Printf("[INFO]: Member list created\n")
 	return &ml
 }
 
@@ -30,7 +31,7 @@ func (ml *MemberList) Retrieve(ts uint64, ip uint32) *Member {
 	if idx > -1 {
 		return ml.Members[idx]
 	} else {
-		panic("[ERROR]: invalid retrieve")
+		panic("[ERROR]: Invalid retrieve")
 	}
 }
 
@@ -38,7 +39,7 @@ func (ml *MemberList) RetrieveByIdx(idx int) *Member {
 	if idx < ml.size && idx > -1 {
 		return ml.Members[idx]
 	} else {
-		panic("[ERROR]: invalid retrieve")
+		panic("[ERROR]: Invalid retrieve")
 	}
 }
 
@@ -50,9 +51,8 @@ func (ml *MemberList) Insert(m *Member) {
 	// Insert new member
 	ml.Members[ml.size] = m
 	ml.size += 1
-
 	// Log Insert
-	fmt.Printf("[LOG]: New Member %d Inset\n", m.TimeStamp)
+	fmt.Printf("[INFO]: Insert member ts: %d\n", m.TimeStamp)
 }
 
 func (ml *MemberList) Delete(ts uint64, ip uint32) {
@@ -61,8 +61,9 @@ func (ml *MemberList) Delete(ts uint64, ip uint32) {
 		// Replace the delete member with the last member
 		ml.Members[idx] = ml.Members[ml.size - 1]
 		ml.size -= 1
+		fmt.Printf("[INFO]: Delete member ts: %d\n", ts)
 	} else {
-		panic("[ERROR]: invalid delete")
+		panic("[ERROR]: Invalid delete")
 	}
 }
 
@@ -70,8 +71,9 @@ func (ml *MemberList) Update(ts uint64, ip uint32, state uint8) {
 	idx := ml.Select(ts, ip)
 	if idx > -1 {
 		ml.Members[idx].State = state
+		fmt.Printf("[INFO]: Update member ts: %d to state: %d\n", ts, state)
 	} else {
-		panic("[ERROR]: invalid update")
+		panic("[ERROR]: Invalid update")
 	}
 }
 
