@@ -7,6 +7,8 @@ import (
 type MemberList struct {
 	Members []*Member
 	size int
+	curPos int
+	shuffleList []int
 }
 
 type Member struct {
@@ -105,6 +107,15 @@ func (ml *MemberList) PrintMemberList() {
 			m.TimeStamp, m.IP, m.State)
 	}
 	fmt.Printf("\n")
+}
+
+func (ml *MemberList) Shuffle() {
+	if ml.curPos == 0 && ml.shuffleList == nil {
+		make
+	}
+	if ml.curPos == ml.size - 1 {
+		
+	}
 }
 
 
