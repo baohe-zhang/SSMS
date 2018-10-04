@@ -177,7 +177,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			}
 			// Read payload
 			payload := buffer[HeaderLength:n] 
-			// Retrive data from Init Reply and store them into the memberlist
+			// Retrieve data from Init Reply and store them into the memberlist
 			handleInitReply(payload)
 
 		} else if header.Type&MemUpdateSuspect != 0 {
@@ -206,21 +206,17 @@ func initReply(addr string, seq uint16, payload []byte) {
 	err := binary.Read(buf, binary.BigEndian, &member)
 	printError(err)
 	// Update state of the new member
-	// ,,,
+	// ...
 	CurrentList.Insert(&member)
 
 	// Put the entire memberlist to the Init Reply's payload
 	var memBuffer bytes.Buffer  // Temp buf to store member's binary value
 	var binBuffer bytes.Buffer
-	// DEBUG
-	fmt.Printf("list size: %d\n", CurrentList.Size())
 
 	for i := 0; i < CurrentList.Size(); i += 1 {
-		member = *CurrentList.Members[i]
-		// DEBUG
-		fmt.Printf("ts of %d: %d\n", i, member.TimeStamp)
+		member_ := CurrentList.RetrieveByIdx(i)
 
-		binary.Write(&memBuffer, binary.BigEndian, member)
+		binary.Write(&memBuffer, binary.BigEndian, member_)
 		binBuffer.Write(memBuffer.Bytes())
 		memBuffer.Reset()  // Clear buffer
 	}
