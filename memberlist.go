@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 )
 
 type MemberList struct {
@@ -55,6 +56,10 @@ func (ml *MemberList) Insert(m *Member) {
 	ml.size += 1
 	// Log Insert
 	fmt.Printf("[INFO]: Insert member ts: %d\n", m.TimeStamp)
+
+	// Prolong the shuffle list
+	ml.shuffleList = append(ml.shuffleList, len(ml.shuffleList))
+	fmt.Printf("[INFO]: Prolong the length of shuffleList to: %d\n", len(ml.shuffleList))
 }
 
 func (ml *MemberList) Delete(ts uint64, ip uint32) {
@@ -67,6 +72,19 @@ func (ml *MemberList) Delete(ts uint64, ip uint32) {
 	} else {
 		panic("[ERROR]: Invalid delete")
 	}
+
+	// Shorten the shuffle list
+	// Find the index of the maximum value in the shuffleList
+	maxidx := 0
+	for idx := 1; idx < len(ml.shuffleList); idx += 1 {
+		if ml.shuffleList[idx] > ml.shuffleList[maxidx] {
+			maxidx = idx
+		}
+	}
+	// Delete this maximum value
+	ml.shuffleList[maxidx] = ml.shuffleList[len(ml.shuffleList) - 1]
+	ml.shuffleList = ml.shuffleList[:len(ml.shuffleList) - 1 ]
+	fmt.Printf("[INFO]: Shorten the length of shuffleList to: %d\n", len(ml.shuffleList))
 }
 
 func (ml *MemberList) Update(ts uint64, ip uint32, state uint8) {
@@ -100,26 +118,38 @@ func (ml *MemberList) Resize(capacity int) {
 }
 
 func (ml *MemberList) PrintMemberList() {
-	fmt.Printf("SIZE: %d, CAPACITY: %d\n", ml.size, len(ml.Members))
+	fmt.Printf("------------------------------------------\n")
+	fmt.Printf("Size: %d, Capacity: %d\n", ml.size, len(ml.Members))
 	for idx := 0; idx < ml.size; idx +=1 {
 		m := ml.Members[idx]
 		fmt.Printf("idx: %d, TS: %d, IP: %d, ST: %b\n", idx, 
 			m.TimeStamp, m.IP, m.State)
 	}
-	fmt.Printf("\n")
+	fmt.Printf("------------------------------------------\n")
 }
 
-func (ml *MemberList) Shuffle() {
-	if ml.curPos == 0 && ml.shuffleList == nil {
-		make
-	}
-	if ml.curPos == ml.size - 1 {
-		
+// Return an round-robin random IP address of member
+func (ml *MemberList) Shuffle() uint32 {
+	// Shuffle the shuffleList when the curPos comes to the end
+	if ml.curPos == (len(ml.shuffleList) - 1) {
+		ip := ml.Members[ml.shuffleList[ml.curPos]].IP
+		ml.curPos = (ml.curPos + 1) % len(ml.shuffleList)
+		// Shuffle the shuffleList
+		rand.Shuffle(len(ml.shuffleList), func(i, j int) {
+			ml.shuffleList[i], ml.shuffleList[j] = ml.shuffleList[j], ml.shuffleList[i]
+		})
+		fmt.Printf("[INFO]: IP: %d is selected by shuffling\n", ip)
+		return ip
+	} else {
+		ip := ml.Members[ml.shuffleList[ml.curPos]].IP
+		ml.curPos = (ml.curPos + 1) % len(ml.shuffleList)
+		fmt.Printf("[INFO]: IP: %d is selected by shuffling\n", ip)
+		return ip
 	}
 }
 
 
-// Test client
+// // Test client
 // func main() {
 // 	ml := NewMemberList(1)
 
@@ -129,27 +159,62 @@ func (ml *MemberList) Shuffle() {
 // 	m4 := Member{4, 4, 4}
 // 	m5 := Member{5, 5, 5}
 // 	m6 := Member{6, 6, 6}
+// 	m7 := Member{7, 7, 7}
+// 	m8 := Member{8, 8, 8}
+// 	m9 := Member{9, 9, 9}
+// 	m10 := Member{10, 10, 10}
 
 
+// 	// Test insert and delete
 // 	ml.Insert(&m1)
-// 	ml.PrintMemberList()
 // 	ml.Insert(&m2)
-// 	ml.PrintMemberList()
 // 	ml.Insert(&m3)
-// 	ml.PrintMemberList()
 // 	ml.Delete(3, 3)
-// 	ml.PrintMemberList()
 // 	ml.Insert(&m4)
-// 	ml.PrintMemberList()
 // 	ml.Insert(&m5)
-// 	ml.PrintMemberList()
 // 	ml.Insert(&m6)
-// 	ml.PrintMemberList()
+
+// 	// Test update
 // 	x := ml.Retrieve(2, 2)
-// 	fmt.Printf("state: %d\n", x.State)
+// 	fmt.Printf("origin state: %d\n", x.State)
 // 	ml.Update(2, 2, 4)
 // 	x = ml.Retrieve(2, 2)
-// 	fmt.Printf("state: %d\n", x.State)
+// 	fmt.Printf("update state: %d\n", x.State)
+
+
+// 	// Test shuffle for 4 rounds
+// 	for i := 0; i < 4; i++ {
+// 		for i := 0; i < len(ml.shuffleList); i++ {
+// 			ml.Shuffle()
+// 		}
+// 	}
+
+// 	// Test shuffle during insert and delete
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Insert(&m7)
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Insert(&m8)
+// 	ml.Shuffle()
+// 	ml.Delete(1,1)
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Insert(&m9)
+// 	ml.Insert(&m10)
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
+// 	ml.Shuffle()
 // }
 
 
