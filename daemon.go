@@ -24,7 +24,7 @@ const (
 	StateSuspect     = 0x01 << 1
 	StateMonit       = 0x01 << 2
 	StateIntro       = 0x01 << 3
-	IntroducerIP     = "10.194.16.24"
+	IntroducerIP     = "10.193.185.82"
 	Port             = ":6666"
 	DetectPeriod     = 500 * time.Millisecond
 )
@@ -50,6 +50,10 @@ var CurrentList *MemberList
 var LocalIP string
 
 var DuplicateUpdateCaches map[uint64]uint8
+var TTLCaches *TtlCache
+
+
+
 
 // A trick to simply get local IP address
 func getLocalIP() net.IP {
@@ -72,33 +76,11 @@ func int2ip(binip uint32) net.IP {
 	return ip
 }
 
-// Start the membership service and join in the group
-func startService() bool {
-
-	// Create a new log file or append to exit file
-	// file, err := os.OpenFile(LocalIP+".log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
-	// if err != nil {
-	// 	fmt.Println("[Error] Open or Create log file failed")
-	// 	return false
-	// }
-	// logPrefix := "[" + LocalIP + "]: "
-	// fmt = log.New(file, logPrefix, log.Ldate|log.Lmicroseconds|log.Lshortfile)
-
-	LocalIP = getLocalIP().String()
-	timestamp := time.Now().UnixNano()
-	state := StateAlive
-	CurrentEntry = &Member{uint64(timestamp), ip2int(getLocalIP()), uint8(state)}
-	CurrentList = NewMemberList(10)
-
-	if LocalIP == IntroducerIP {
-		CurrentEntry.State |= (StateIntro | StateMonit)
-		CurrentList.Insert(CurrentEntry)
-	} else {
-		// New member, send Init Request to the introducer
-		initRequest(CurrentEntry)
+// Helper function to print the err in process
+func printError(err error) {
+	if err != nil {
+		fmt.Println("[ERROR]", err.Error())
 	}
-
-	return true
 }
 
 // UDP send
@@ -416,23 +398,80 @@ func ping(addr string) {
 	pingWithPayload(addr, nil, 0x00)
 }
 
+// Start the membership service and join in the group
+func startService() bool {
+
+	// Create a new log file or append to exit file
+	// file, err := os.OpenFile(LocalIP+".log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
+	// if err != nil {
+	// 	fmt.Println("[Error] Open or Create log file failed")
+	// 	return false
+	// }
+	// logPrefix := "[" + LocalIP + "]: "
+	// fmt = log.New(file, logPrefix, log.Ldate|log.Lmicroseconds|log.Lshortfile)
+
+	// Create self entry
+	LocalIP = getLocalIP().String()
+	timestamp := time.Now().UnixNano()
+	state := StateAlive
+	CurrentEntry = &Member{uint64(timestamp), ip2int(getLocalIP()), uint8(state)}
+
+	// Create member list
+	CurrentList = NewMemberList(10)
+
+	// Make necessary tables
+	PingAckTimeout = make(map[uint16]*time.Timer)
+	DuplicateUpdateCaches = make(map[uint64]uint8)
+	TTLCaches = NewTtlCache()
+
+	if LocalIP == IntroducerIP {
+		CurrentEntry.State |= (StateIntro | StateMonit)
+		CurrentList.Insert(CurrentEntry)
+	} else {
+		// New member, send Init Request to the introducer
+		initRequest(CurrentEntry)
+	}
+
+	return true
+}
+
+
 // Main func
 func main() {
-	DuplicateUpdateCaches = make(map[uint64]uint8)
-	PingAckTimeout = make(map[uint16]*time.Timer)
+
+	// Init
 	if startService() == true {
 		fmt.Printf("START SERVICE\n")
 	}
+
+	// Start daemon
 	udpDaemon()
+
+	// Construct a join update payload
+	update := Update{1111, 2, 2222, 3333, StateAlive}
+	var updateBuffer bytes.Buffer
+	// Convert srtuct to binary
+	binary.Write(&updateBuffer, binary.BigEndian, &update)
+	// Send Update
+	pingWithPayload("10.193.185.82" + Port, updateBuffer.Bytes(), Ping | MemUpdateJoin)
+
+	time.Sleep(time.Second)
+	CurrentList.PrintMemberList()
+
+
+	// Construct a join update payload
+	update = Update{1112, 2, 2222, 3333, StateSuspect}
+	var suspectBuffer bytes.Buffer
+	// Convert srtuct to binary
+	binary.Write(&suspectBuffer, binary.BigEndian, &update)
+	pingWithPayload("10.193.185.82" + Port, suspectBuffer.Bytes(), Ping | MemUpdateSuspect)
+
+	time.Sleep(time.Second)
+	CurrentList.PrintMemberList()
+
 	for {
-		ping("10.194.16.24" + Port)
-		time.Sleep(DetectPeriod)
+
 	}
+
 }
 
-// Helper function to print the err in process
-func printError(err error) {
-	if err != nil {
-		fmt.Println("[ERROR]", err.Error())
-	}
-}
