@@ -158,27 +158,21 @@ func (ml *MemberList) Shuffle() *Member {
 			j := rand.Intn(i + 1)
 			ml.shuffleList[i], ml.shuffleList[j] = ml.shuffleList[j], ml.shuffleList[i]
 		}
-		fmt.Printf("[INFO]: Member (%d, %d) is selected by shuffling\n", member.TimeStamp,
-			member.IP)
 		return member
 	} else {
 		member := ml.Members[ml.shuffleList[ml.curPos]]
 		ml.curPos = (ml.curPos + 1) % len(ml.shuffleList)
-		fmt.Printf("[INFO]: Member (%d, %d) is selected by shuffling\n", member.TimeStamp,
-			member.IP)
 		return member
 	}
 }
 
-// Return ture if introducer of the system is in the list
-func (ml *MemberList) isIntroducerAlive(introIP uint32) bool {
+// Return ture if IP exists in the list
+func (ml *MemberList) ContainsIP(ip uint32) bool {
 	for idx := 0; idx < ml.size; idx += 1 {
-		if ml.Members[idx].IP == introIP {
-			// Introducer alive
+		if ml.Members[idx].IP == ip {
 			return true
 		}
 	}
-	// Introducer falied
 	return false
 }
 

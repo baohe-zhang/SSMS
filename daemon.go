@@ -40,7 +40,7 @@ const (
 type Header struct {
 	Type uint8
 	Seq  uint16
-	Zero uint8
+	Reserved uint8
 }
 
 type Update struct {
@@ -137,7 +137,7 @@ func periodicPingIntroducer() {
 		// Periodiclly ping introducer when introducer is failed.
 		// Piggyback it's self member info
 		// Use for introducer revive
-		if !CurrentList.isIntroducerAlive(ip2int(net.ParseIP(IntroducerIP))) {
+		if !CurrentList.ContainsIP(ip2int(net.ParseIP(IntroducerIP))) {
 			// Construct a join update
 			uid := TTLCaches.RandGen.Uint64()
 			update := Update{uid, 0, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
@@ -205,6 +205,14 @@ func udpDaemonHandle(connect *net.UDPConn) {
 
 		if header.Type&Ping != 0 {
 
+			reserved := uint8(0x00)
+			// Check whether this ping's source IP is within the memberlist
+			// IF not, set reserved 0xff, ask for sender's join update
+			if !CurrentList.ContainsIP(ip2int(addr.IP)) {
+				reserved = 0xff
+				fmt.Printf("[INFO]: Receive ping from unknown member, set reserved field 0xff")
+			}
+
 			// Check whether this ping carries Init Request
 			if header.Type&MemInitRequest != 0 {
 				// Handle Init Request
@@ -218,10 +226,10 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				update, flag, err := getUpdate()
 				// if no update there, do pure ping
 				if err != nil {
-					ack(addr.IP.String(), header.Seq)
+					ack(addr.IP.String(), header.Seq, reserved)
 				} else {
 					// Send update as payload of ping
-					ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+					ackWithPayload(addr.IP.String(), header.Seq, update, flag, reserved)
 				}
 
 			} else if header.Type&MemUpdateResume != 0 {
@@ -231,10 +239,10 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				update, flag, err := getUpdate()
 				// if no update there, do pure ping
 				if err != nil {
-					ack(addr.IP.String(), header.Seq)
+					ack(addr.IP.String(), header.Seq, reserved)
 				} else {
 					// Send update as payload of ping
-					ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+					ackWithPayload(addr.IP.String(), header.Seq, update, flag, reserved)
 				}
 
 			} else if header.Type&MemUpdateLeave != 0 {
@@ -244,10 +252,10 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				update, flag, err := getUpdate()
 				// if no update there, do pure ping
 				if err != nil {
-					ack(addr.IP.String(), header.Seq)
+					ack(addr.IP.String(), header.Seq, reserved)
 				} else {
 					// Send update as payload of ping
-					ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+					ackWithPayload(addr.IP.String(), header.Seq, update, flag, reserved)
 				}
 
 			} else if header.Type&MemUpdateJoin != 0 {
@@ -257,10 +265,10 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				update, flag, err := getUpdate()
 				// if no update there, do pure ping
 				if err != nil {
-					ack(addr.IP.String(), header.Seq)
+					ack(addr.IP.String(), header.Seq, reserved)
 				} else {
 					// Send update as payload of ping
-					ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+					ackWithPayload(addr.IP.String(), header.Seq, update, flag, reserved)
 				}
 
 			} else {
@@ -268,7 +276,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				// No handling payload needed
 				// Check whether update sending needed
 				// If no, simply reply with ack
-				ack(addr.IP.String(), header.Seq)
+				ack(addr.IP.String(), header.Seq, reserved)
 			}
 
 		} else if header.Type&Ack != 0 {
@@ -279,6 +287,16 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				timer.Stop()
 				fmt.Printf("[INFO]: Receive ACK from [%s] with seq %d\n", addr.IP.String(), header.Seq)
 				delete(PingAckTimeout, header.Seq-1)
+			}
+
+			// Check header's reserved field
+			// If reserved field is 0xff, means this handler is missing in someone else's memberlist, 
+			// Hence disseminate join update
+			if header.Reserved == 0xff {
+				uid := TTLCaches.RandGen.Uint64()
+				update := Update{uid, 3, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+				TTLCaches.Set(&update)
+				fmt.Printf("[INFO]: Receive header with reserved 0xff, disseminate join update")
 			}
 
 			// Read payload
@@ -498,7 +516,7 @@ func initReply(addr string, seq uint16, payload []byte) {
 	CurrentList.PrintMemberList()
 
 	// Send pigggback Init Reply
-	ackWithPayload(addr, seq, binBuffer.Bytes(), MemInitReply)
+	ackWithPayload(addr, seq, binBuffer.Bytes(), MemInitReply, 0x00)
 }
 
 func initRequest(member *Member) {
@@ -518,8 +536,8 @@ func initRequest(member *Member) {
 	}()
 }
 
-func ackWithPayload(addr string, seq uint16, payload []byte, flag uint8) {
-	packet := Header{Ack | flag, seq + 1, 0}
+func ackWithPayload(addr string, seq uint16, payload []byte, flag uint8, reserved uint8) {
+	packet := Header{Ack | flag, seq + 1, reserved}
 	var binBuffer bytes.Buffer
 	binary.Write(&binBuffer, binary.BigEndian, packet)
 
@@ -531,8 +549,8 @@ func ackWithPayload(addr string, seq uint16, payload []byte, flag uint8) {
 	}
 }
 
-func ack(addr string, seq uint16) {
-	ackWithPayload(addr, seq, nil, 0x00)
+func ack(addr string, seq uint16, reserved uint8) {
+	ackWithPayload(addr, seq, nil, 0x00, reserved)
 }
 
 func pingWithPayload(member *Member, payload []byte, flag uint8) {
