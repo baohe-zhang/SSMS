@@ -66,7 +66,11 @@ func getLocalIP() net.IP {
 
 // Convert net.IP to uint32
 func ip2int(ip net.IP) uint32 {
-	return binary.BigEndian.Uint32(ip[12:16])
+	if len(ip) == 16 {
+		return binary.BigEndian.Uint32(ip[12:16])
+	} else {
+		return binary.BigEndian.Uint32(ip)
+	}
 }
 
 // Convert uint32 to net.IP
