@@ -164,8 +164,9 @@ func udpDaemonHandle(connect *net.UDPConn) {
 	} else if header.Type&Ack != 0 {
 
 		// Receive Ack, stop ping timer
-		stop := PingAckTimeout[header.Seq-1].Stop()
-		if stop {
+		timer, ok := PingAckTimeout[header.Seq-1]
+		if ok {
+			timer.Stop()
 			fmt.Printf("RECEIVE ACK FROM [%s]: %d\n", addr.IP.String(), header.Seq)
 			delete(PingAckTimeout, header.Seq-1)
 		}
@@ -264,6 +265,7 @@ func handleSuspect(payload []byte) {
 			<-timer.C
 			fmt.Printf("[Failure Detected][%s] %xTIMEOUT\n", int2ip(update.MemberIP).String(), update.MemberTimeStamp)
 			CurrentList.Delete(update.MemberTimeStamp, update.MemberIP)
+			delete(FailureTimeout, [2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)})
 		}()
 
 	}
@@ -279,6 +281,9 @@ func handleResume(payload []byte) {
 	updateID := update.UpdateID
 	if !isUpdateDuplicate(updateID) {
 		// Receive new update, handle it
+		timer := FailureTimeout[[2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)}]
+		timer.Stop()
+		delete(FailureTimeout, [2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)})
 		CurrentList.Update(update.MemberTimeStamp, update.MemberIP,
 			update.MemberState)
 		TTLCaches.Set(&update)
