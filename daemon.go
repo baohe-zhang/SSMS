@@ -208,11 +208,11 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			// Check whether this ping carries Init Request
 			if header.Type&MemInitRequest != 0 {
 				// Handle Init Request
-				fmt.Printf("[INFO]: Receive Init Request from [%s]: with seq %d\n", addr.IP.String(), header.Seq)
+				fmt.Printf("[INFO]: Receive Init Request from %s: with seq %d\n", addr.IP.String(), header.Seq)
 				initReply(addr.IP.String(), header.Seq, payload)
 
 			} else if header.Type&MemUpdateSuspect != 0 {
-				fmt.Printf("[INFO]: Handle suspect update\n")
+				fmt.Printf("[INFO]: Handle suspect update sent from %s\n", addr.IP.String())
 				handleSuspect(payload)
 				// Get update entry from TTL Cache
 				update, flag, err := getUpdate()
@@ -225,7 +225,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				}
 
 			} else if header.Type&MemUpdateResume != 0 {
-				fmt.Printf("[INFO]: Handle resume update\n")
+				fmt.Printf("[INFO]: Handle resume update sent from %s\n", addr.IP.String())
 				handleResume(payload)
 				// Get update entry from TTL Cache
 				update, flag, err := getUpdate()
@@ -238,7 +238,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				}
 
 			} else if header.Type&MemUpdateLeave != 0 {
-				fmt.Printf("[INFO]: Handle leave update\n")
+				fmt.Printf("[INFO]: Handle leave update sent from %s\n", addr.IP.String())
 				handleLeave(payload)
 				// Get update entry from TTL Cache
 				update, flag, err := getUpdate()
@@ -251,7 +251,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				}
 
 			} else if header.Type&MemUpdateJoin != 0 {
-				fmt.Printf("[INFO]: Handle join update\n")
+				fmt.Printf("[INFO]: Handle join update sent from %s\n", addr.IP.String())
 				handleJoin(payload)
 				// Get update entry from TTL Cache
 				update, flag, err := getUpdate()
@@ -293,23 +293,23 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				handleInitReply(payload)
 
 			} else if header.Type&MemUpdateSuspect != 0 {
-				fmt.Printf("[INFO]: Handle suspect update\n")
+				fmt.Printf("[INFO]: Handle suspect update sent from %s\n", addr.IP.String())
 				handleSuspect(payload)
 
 			} else if header.Type&MemUpdateResume != 0 {
-				fmt.Printf("[INFO]: Handle resume update\n")
+				fmt.Printf("[INFO]: Handle resume update sent from %s\n", addr.IP.String())
 				handleResume(payload)
 
 			} else if header.Type&MemUpdateLeave != 0 {
-				fmt.Printf("[INFO]: Handle leave update\n")
+				fmt.Printf("[INFO]: Handle leave update sent from %s\n", addr.IP.String())
 				handleLeave(payload)
 
 			} else if header.Type&MemUpdateJoin != 0 {
-				fmt.Printf("[INFO]: Handle join update\n")
+				fmt.Printf("[INFO]: Handle join update sent from %s\n", addr.IP.String())
 				handleJoin(payload)
 
 			} else {
-				fmt.Printf("[INFO]: Receive pure ack\n")
+				fmt.Printf("[INFO]: Receive pure ack sent from %s\n", addr.IP.String())
 			}
 		}
 	}
@@ -363,6 +363,7 @@ func handleSuspect(payload []byte) {
 		// suspect self, tell them I am alvie
 		if CurrentMember.TimeStamp == update.MemberTimeStamp && CurrentMember.IP == update.MemberIP {
 			addUpdate2Cache(CurrentMember, MemUpdateResume)
+			fmt.Printf("[DEBUG]: Resume")
 			return
 		}
 
@@ -398,7 +399,11 @@ func handleResume(payload []byte) {
 			timer.Stop()
 			delete(FailureTimeout, [2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)})
 		}
-		CurrentList.Update(update.MemberTimeStamp, update.MemberIP, update.MemberState)
+		err := CurrentList.Update(update.MemberTimeStamp, update.MemberIP, update.MemberState)
+		// If the resume target is not in the list, insert it to the list
+		if err != nil {
+			CurrentList.Insert(&Member{update.MemberTimeStamp, update.MemberIP, update.MemberState})
+		}
 		TTLCaches.Set(&update)
 	}
 }
@@ -489,9 +494,7 @@ func initReply(addr string, seq uint16, payload []byte) {
 		binBuffer.Write(memBuffer.Bytes())
 		memBuffer.Reset() // Clear buffer
 	}
-
-	// DEBUG PRINTLIST
-	fmt.Printf("len of payload before send reply: %d\n", len(binBuffer.Bytes()))
+	// Print memberlist when new member joins
 	CurrentList.PrintMemberList()
 
 	// Send pigggback Init Reply
