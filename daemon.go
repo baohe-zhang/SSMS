@@ -483,6 +483,16 @@ func pingWithPayload(member *Member, payload []byte, flag uint8) {
 			addUpdate2Cache(member, MemUpdateSuspect)
 		}
 		delete(PingAckTimeout, uint16(seq))
+		// Handle local suspect timeout
+		failure_timer := time.NewTimer(time.Second)
+		FailureTimeout[[2]uint64{member.TimeStamp, uint64(member.IP)}] = failure_timer
+		go func() {
+			<-failure_timer.C
+			fmt.Printf("[Failure Detected][%s] %xFailed\n", int2ip(member.IP).String(), member.TimeStamp)
+			err := CurrentList.Delete(member.TimeStamp, member.IP)
+			printError(err)
+			delete(FailureTimeout, [2]uint64{member.TimeStamp, uint64(member.IP)})
+		}()
 	}()
 }
 
