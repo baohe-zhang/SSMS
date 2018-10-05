@@ -8,8 +8,8 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"time"
 	"sync"
+	"time"
 )
 
 const (
@@ -26,9 +26,14 @@ const (
 	StateMonit       = 0x01 << 2
 	StateIntro       = 0x01 << 3
 	//IntroducerIP     = "10.0.0.180"
-	IntroducerIP     = "10.193.185.82"
-	Port             = ":6666"
-	DetectPeriod     = 500 * time.Millisecond
+	IntroducerIP       = "10.193.185.82"
+	Port               = ":6666"
+	InitTimeoutPeriod  = 2000 * time.Millisecond
+	PingTimeoutPeriod  = 1000 * time.Millisecond
+	PingSendingPeriod  = 500 * time.Millisecond
+	SuspectPeriod      = 1000 * time.Millisecond
+	PingIntroPeriod    = 10000 * time.Millisecond
+	UpdateDeletePeriod = 15000 * time.Millisecond
 )
 
 type Header struct {
@@ -131,12 +136,12 @@ func periodicPingIntroducer() {
 			var updateBuffer bytes.Buffer
 			binary.Write(&updateBuffer, binary.BigEndian, &update)
 			// Send piggyback Join Update
-			fmt.Printf("[INFO]: Introducer failed, try to ping introducer")
+			fmt.Printf("[INFO]: Introducer failed, try to ping introducer\n")
 			pingWithPayload(&Member{0, ip2int(net.ParseIP(IntroducerIP)), 0}, updateBuffer.Bytes(), MemUpdateJoin)
 		}
 
 		// Ping introducer period
-		time.Sleep(5 * time.Second)
+		time.Sleep(PingIntroPeriod)
 	}
 }
 
@@ -149,7 +154,7 @@ func periodicPing() {
 			member := CurrentList.Shuffle()
 			// Do not pick itself as the ping target
 			if member.TimeStamp == CurrentMember.TimeStamp && member.IP == CurrentMember.IP {
-				time.Sleep(DetectPeriod)
+				time.Sleep(PingSendingPeriod)
 				continue
 			}
 			// Get update entry from TTL Cache
@@ -162,7 +167,7 @@ func periodicPing() {
 				pingWithPayload(member, update, flag)
 			}
 		}
-		time.Sleep(DetectPeriod)
+		time.Sleep(PingSendingPeriod)
 	}
 }
 
@@ -310,7 +315,7 @@ func isUpdateDuplicate(id uint64) bool {
 	} else {
 		DuplicateUpdateCaches[id] = 1 // add to cache
 		fmt.Printf("[INFO]: Add update %d to duplicated cache table \n", id)
-		recent_update_timer := time.NewTimer(16 * time.Second) // set a delete timer
+		recent_update_timer := time.NewTimer(UpdateDeletePeriod) // set a delete timer
 		go func() {
 			<-recent_update_timer.C
 			_, ok := DuplicateUpdateCaches[id]
@@ -355,11 +360,11 @@ func handleSuspect(payload []byte) {
 		CurrentList.Update(update.MemberTimeStamp, update.MemberIP,
 			update.MemberState)
 		TTLCaches.Set(&update)
-		timer := time.NewTimer(time.Second)
-		FailureTimeout[[2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)}] = timer
+		failure_timer := time.NewTimer(SuspectPeriod)
+		FailureTimeout[[2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)}] = failure_timer
 		go func() {
-			<-timer.C
-			fmt.Printf("[Failure Detected][%s] %xTIMEOUT\n", int2ip(update.MemberIP).String(), update.MemberTimeStamp)
+			<-failure_timer.C
+			fmt.Printf("[Failure Detected](%s, %d) suspect timeout\n", int2ip(update.MemberIP).String(), update.MemberTimeStamp)
 			err := CurrentList.Delete(update.MemberTimeStamp, update.MemberIP)
 			printError(err)
 			delete(FailureTimeout, [2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)})
@@ -481,7 +486,7 @@ func initRequest(member *Member) {
 	pingWithPayload(&Member{0, ip2int(net.ParseIP(IntroducerIP)), 0}, binBuffer.Bytes(), MemInitRequest)
 
 	// Start Init timer, if expires, exit process
-	init_timer = time.NewTimer(2 * time.Second)
+	init_timer = time.NewTimer(InitTimeoutPeriod)
 	go func() {
 		<-init_timer.C
 		fmt.Printf("[INFO]: Init %s timeout, process exit\n", IntroducerIP)
@@ -525,7 +530,7 @@ func pingWithPayload(member *Member, payload []byte, flag uint8) {
 	}
 	fmt.Printf("[INFO]: Ping (%s, %d)\n", addr, seq)
 
-	timer := time.NewTimer(time.Second)
+	timer := time.NewTimer(PingTimeoutPeriod)
 	PingAckTimeout[uint16(seq)] = timer
 	go func() {
 		<-timer.C
@@ -536,7 +541,7 @@ func pingWithPayload(member *Member, payload []byte, flag uint8) {
 		}
 		delete(PingAckTimeout, uint16(seq))
 		// Handle local suspect timeout
-		failure_timer := time.NewTimer(time.Second)
+		failure_timer := time.NewTimer(SuspectPeriod)
 		FailureTimeout[[2]uint64{member.TimeStamp, uint64(member.IP)}] = failure_timer
 		go func() {
 			<-failure_timer.C
