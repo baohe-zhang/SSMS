@@ -196,7 +196,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
 			}
 
-			
+
 		} else {
 			// Ping with no payload,
 			// No handling payload needed
@@ -308,7 +308,8 @@ func handleSuspect(payload []byte) {
 		go func() {
 			<-timer.C
 			fmt.Printf("[Failure Detected][%s] %xTIMEOUT\n", int2ip(update.MemberIP).String(), update.MemberTimeStamp)
-			CurrentList.Delete(update.MemberTimeStamp, update.MemberIP)
+			err := CurrentList.Delete(update.MemberTimeStamp, update.MemberIP)
+			printError(err)
 			delete(FailureTimeout, [2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)})
 		}()
 
