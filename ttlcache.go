@@ -28,12 +28,12 @@ func NewTtlCache() *TtlCache {
 
 // Set the update packet in TTL Cache
 func (tc *TtlCache) Set(val *Update) {
-	if val.TTL == 0 {
+	if val.TTL < 1 {
 		fmt.Printf("[INFO]: TTL cache cannot set for ttl=0 %d\n", val.UpdateID)
 		return
 	}
 	tc.TtlList = append(tc.TtlList, val)
-	fmt.Printf("[INFO]: TTL cache add a new\n")
+	fmt.Printf("[INFO]: TTL cache add a new, TTL: %d\n", val.TTL)
 }
 
 // Get one entry each time in TTL Cache
@@ -43,8 +43,10 @@ func (tc *TtlCache) Get() (*Update, error) {
 		return nil, errors.New("Empty TTL List, cannot Get()")
 	}
 	cur := tc.TtlList[tc.Pointer]
+	// Copy current update
+	update := Update{cur.UpdateID, cur.TTL, cur.UpdateType, cur.MemberTimeStamp, cur.MemberIP, cur.MemberState}
 	cur.TTL -= 1
-	if cur.TTL <= 0 {
+	if cur.TTL < 1 {
 		fmt.Printf("[INFO]: TTL cache expired %d\n", cur.UpdateID)
 		// Delete this entry
 		copy(tc.TtlList[tc.Pointer:], tc.TtlList[tc.Pointer+1:])
@@ -56,7 +58,7 @@ func (tc *TtlCache) Get() (*Update, error) {
 	} else {
 		tc.Pointer = 0
 	}
-	return cur, nil
+	return &update, nil
 }
 
 /*func main() {*/
