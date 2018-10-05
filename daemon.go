@@ -144,19 +144,59 @@ func udpDaemonHandle(connect *net.UDPConn) {
 		} else if header.Type&MemUpdateSuspect != 0 {
 			fmt.Printf("handle suspect update\n")
 			handleSuspect(payload)
+			// Get update entry from TTL Cache
+			update, flag, err := getUpdate()
+			// if no update there, do pure ping
+			if err != nil {
+				ack(addr.IP.String(), header.Seq)
+			} else {
+				// Send update as payload of ping
+				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+			}
+
 
 		} else if header.Type&MemUpdateResume != 0 {
 			fmt.Printf("handle resume update\n")
 			handleResume(payload)
+			// Get update entry from TTL Cache
+			update, flag, err := getUpdate()
+			// if no update there, do pure ping
+			if err != nil {
+				ack(addr.IP.String(), header.Seq)
+			} else {
+				// Send update as payload of ping
+				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+			}
+
 
 		} else if header.Type&MemUpdateLeave != 0 {
 			fmt.Printf("handle leave update\n")
 			handleLeave(payload)
+			// Get update entry from TTL Cache
+			update, flag, err := getUpdate()
+			// if no update there, do pure ping
+			if err != nil {
+				ack(addr.IP.String(), header.Seq)
+			} else {
+				// Send update as payload of ping
+				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+			}
+
 
 		} else if header.Type&MemUpdateJoin != 0 {
 			fmt.Printf("handle join update\n")
 			handleJoin(payload)
+			// Get update entry from TTL Cache
+			update, flag, err := getUpdate()
+			// if no update there, do pure ping
+			if err != nil {
+				ack(addr.IP.String(), header.Seq)
+			} else {
+				// Send update as payload of ping
+				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+			}
 
+			
 		} else {
 			// Ping with no payload,
 			// No handling payload needed
