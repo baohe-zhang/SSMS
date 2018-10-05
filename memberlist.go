@@ -147,19 +147,21 @@ func (ml *MemberList) PrintMemberList() {
 func (ml *MemberList) Shuffle() *Member {
 	// Shuffle the shuffleList when the curPos comes to the end
 	if ml.curPos == (len(ml.shuffleList) - 1) {
-		ip := ml.Members[ml.shuffleList[ml.curPos]].IP
+		member := ml.Members[ml.shuffleList[ml.curPos]]
 		ml.curPos = (ml.curPos + 1) % len(ml.shuffleList)
 		// Shuffle the shuffleList
 		rand.Shuffle(len(ml.shuffleList), func(i, j int) {
 			ml.shuffleList[i], ml.shuffleList[j] = ml.shuffleList[j], ml.shuffleList[i]
 		})
-		fmt.Printf("[INFO]: IP: %d is selected by shuffling\n", ip)
-		return ml.Members[ml.shuffleList[ml.curPos]]
+		fmt.Printf("[INFO]: Member (%d, %d) is selected by shuffling\n", member.TimeStamp,
+			member.IP)
+		return member
 	} else {
-		ip := ml.Members[ml.shuffleList[ml.curPos]].IP
+		member := ml.Members[ml.shuffleList[ml.curPos]]
 		ml.curPos = (ml.curPos + 1) % len(ml.shuffleList)
-		fmt.Printf("[INFO]: IP: %d is selected by shuffling\n", ip)
-		return ml.Members[ml.shuffleList[ml.curPos]]
+		fmt.Printf("[INFO]: Member (%d, %d) is selected by shuffling\n", member.TimeStamp, 
+			member.IP)
+		return member
 	}
 }
 
