@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sync"
 )
+
+var mutex sync.Mutex
 
 type MemberList struct {
 	Members     []*Member
@@ -76,11 +79,7 @@ func (ml *MemberList) Insert(m *Member) error {
 func (ml *MemberList) Delete(ts uint64, ip uint32) error {
 	idx := ml.Select(ts, ip)
 	if idx > -1 {
-		// Replace the delete member with the last member
-		ml.Members[idx] = ml.Members[ml.size-1]
-		ml.size -= 1
-		fmt.Printf("[INFO]: Delete member (%d, %d)\n", ts, ip)
-
+		mutex.Lock()
 		// Shorten the shuffle list
 		// Find the index of the maximum value in the shuffleList
 		maxidx := 0
@@ -89,11 +88,16 @@ func (ml *MemberList) Delete(ts uint64, ip uint32) error {
 				maxidx = idx
 			}
 		}
-		// Delete this maximum value
+		// Delete this maximum value and shorten the shuffList
 		ml.shuffleList[maxidx] = ml.shuffleList[len(ml.shuffleList)-1]
 		ml.shuffleList = ml.shuffleList[:len(ml.shuffleList)-1]
 		fmt.Printf("[INFO]: Shorten the length of shuffleList to: %d\n", len(ml.shuffleList))
 
+		// Replace the delete member with the last member
+		ml.Members[idx] = ml.Members[ml.size-1]
+		ml.size -= 1
+		fmt.Printf("[INFO]: Delete member (%d, %d)\n", ts, ip)
+		mutex.Lock()
 		return nil
 	} else {
 		return errors.New("Invalid delete")
@@ -145,6 +149,7 @@ func (ml *MemberList) PrintMemberList() {
 
 // Return an round-robin random member
 func (ml *MemberList) Shuffle() *Member {
+	mutex.Lock()
 	// Shuffle the shuffleList when the curPos comes to the end
 	if ml.curPos == (len(ml.shuffleList) - 1) {
 		member := ml.Members[ml.shuffleList[ml.curPos]]
@@ -155,12 +160,14 @@ func (ml *MemberList) Shuffle() *Member {
 		})
 		fmt.Printf("[INFO]: Member (%d, %d) is selected by shuffling\n", member.TimeStamp,
 			member.IP)
+		mutex.Unlock()
 		return member
 	} else {
 		member := ml.Members[ml.shuffleList[ml.curPos]]
 		ml.curPos = (ml.curPos + 1) % len(ml.shuffleList)
 		fmt.Printf("[INFO]: Member (%d, %d) is selected by shuffling\n", member.TimeStamp, 
 			member.IP)
+		mutex.Unlock()
 		return member
 	}
 }
