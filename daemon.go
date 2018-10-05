@@ -24,7 +24,7 @@ const (
 	StateSuspect     = 0x01 << 1
 	StateMonit       = 0x01 << 2
 	StateIntro       = 0x01 << 3
-	IntroducerIP     = "10.194.16.24"
+	IntroducerIP     = "10.0.0.180"
 	Port             = ":6666"
 	DetectPeriod     = 500 * time.Millisecond
 )
@@ -105,9 +105,9 @@ func udpDaemon() {
 	listen, err := net.ListenUDP("udp", udpAddr)
 	printError(err)
 
-		for {
-		go	udpDaemonHandle(listen)
-// Shuffle membership list and get a member IP
+	for {
+		go udpDaemonHandle(listen)
+		// Shuffle membership list and get a member IP
 		if CurrentList.Size() > 0 {
 			member := CurrentList.Shuffle()
 			// Do not pick itself as the ping target
@@ -125,8 +125,8 @@ func udpDaemon() {
 				pingWithPayload(member, update, flag)
 			}
 		}
-			time.Sleep(DetectPeriod)
-		}
+		time.Sleep(DetectPeriod)
+	}
 }
 
 func udpDaemonHandle(connect *net.UDPConn) {
@@ -171,7 +171,6 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
 			}
 
-
 		} else if header.Type&MemUpdateResume != 0 {
 			fmt.Printf("[INFO]: Handle resume update\n")
 			handleResume(payload)
@@ -184,7 +183,6 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				// Send update as payload of ping
 				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
 			}
-
 
 		} else if header.Type&MemUpdateLeave != 0 {
 			fmt.Printf("[INFO]: Handle leave update\n")
@@ -199,7 +197,6 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
 			}
 
-
 		} else if header.Type&MemUpdateJoin != 0 {
 			fmt.Printf("[INFO]: Handle join update\n")
 			handleJoin(payload)
@@ -212,7 +209,6 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				// Send update as payload of ping
 				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
 			}
-
 
 		} else {
 			// Ping with no payload,
@@ -449,7 +445,7 @@ func initRequest(member *Member) {
 	init_timer = time.NewTimer(2 * time.Second)
 	go func() {
 		<-init_timer.C
-		fmt.Printf("INIT %s TIMEOUT, PROCESS EXIT.\n", IntroducerIP)
+		fmt.Printf("[INFO]: Init %s timeout, process exit\n", IntroducerIP)
 		os.Exit(1)
 	}()
 }
@@ -488,13 +484,13 @@ func pingWithPayload(member *Member, payload []byte, flag uint8) {
 	} else {
 		udpSend(addr, binBuffer.Bytes())
 	}
-	fmt.Printf("PING [%s]: %d\n", addr, seq)
+	fmt.Printf("[INFO]: Ping (%s, %d)\n", addr, seq)
 
 	timer := time.NewTimer(time.Second)
 	PingAckTimeout[uint16(seq)] = timer
 	go func() {
 		<-timer.C
-		fmt.Printf("PING [%s]: %d TIMEOUT\n", addr, seq)
+		fmt.Printf("[INFO]: Ping (%s, %d) timeour\n", addr, seq)
 		err := CurrentList.Update(member.TimeStamp, member.IP, StateSuspect)
 		if err == nil {
 			addUpdate2Cache(member, MemUpdateSuspect)
@@ -505,7 +501,7 @@ func pingWithPayload(member *Member, payload []byte, flag uint8) {
 		FailureTimeout[[2]uint64{member.TimeStamp, uint64(member.IP)}] = failure_timer
 		go func() {
 			<-failure_timer.C
-			fmt.Printf("[Failure Detected](%s, %d) Failed\n", int2ip(member.IP).String(), member.TimeStamp)
+			fmt.Printf("[INFO]: (%s, %d) Failed\n", int2ip(member.IP).String(), member.TimeStamp)
 			err := CurrentList.Delete(member.TimeStamp, member.IP)
 			printError(err)
 			delete(FailureTimeout, [2]uint64{member.TimeStamp, uint64(member.IP)})
@@ -560,13 +556,13 @@ func main() {
 
 	// Init
 	if startService() == true {
-		fmt.Printf("START SERVICE\n")
+		fmt.Printf("[INFO]: Start service\n")
 	}
 
 	// Start daemon
 	udpDaemon()
 
 	for {
-			}
+	}
 
 }
