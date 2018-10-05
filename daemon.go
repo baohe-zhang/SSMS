@@ -46,8 +46,8 @@ type Update struct {
 
 var init_timer *time.Timer
 var PingAckTimeout map[uint16]*time.Timer
-var FailureTimeout map[[]byte]*time.Timer
-var CurrentEntry *Member
+var FailureTimeout map[[2]uint64]*time.Timer
+var CurrentMember *Member
 var CurrentList *MemberList
 var LocalIP string
 
@@ -244,24 +244,22 @@ func handleSuspect(payload []byte) {
 	err := binary.Read(buf, binary.BigEndian, &update)
 	printError(err)
 
-	if CurrentMember.TimeStamp == update.MemberTimeStamp && CurrentMember.IP == update.MemberIP {
-		addUpdate2Cache(&member, MemUpdateResume)
-	}
-
 	// Retrieve update ID
 	updateID := update.UpdateID
 	if !isUpdateDuplicate(updateID) {
+		// If find someone sends suspect update which
+		// suspect self, tell them I am alvie
+		if CurrentMember.TimeStamp == update.MemberTimeStamp && CurrentMember.IP == update.MemberIP {
+			addUpdate2Cache(CurrentMember, MemUpdateResume)
+			return
+		}
+
 		// Receive new update, handle it
 		CurrentList.Update(update.MemberTimeStamp, update.MemberIP,
 			update.MemberState)
-		TTLCaches.Set(&Update)
+		TTLCaches.Set(&update)
 		timer := time.NewTimer(time.Second)
-		buf := new(bytes.Buffer)
-		err := binary.Write(buf, binary.LittleEndian, update.MemberTimeStamp)
-		printError(err)
-		err = binary.Write(buf, binary.LittleEndian, update.MemberIP)
-		printError(err)
-		FailureTimeout[buf.Bytes()] = timer
+		FailureTimeout[[2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)}] = timer
 		go func() {
 			<-timer.C
 			fmt.Printf("[Failure Detected][%s] %xTIMEOUT\n", int2ip(update.MemberIP).String(), update.MemberTimeStamp)
@@ -283,7 +281,7 @@ func handleResume(payload []byte) {
 		// Receive new update, handle it
 		CurrentList.Update(update.MemberTimeStamp, update.MemberIP,
 			update.MemberState)
-		TTLCaches.Set(&Update)
+		TTLCaches.Set(&update)
 	}
 }
 
@@ -298,7 +296,7 @@ func handleLeave(payload []byte) {
 	if !isUpdateDuplicate(updateID) {
 		// Receive new update, handle it
 		CurrentList.Delete(update.MemberTimeStamp, update.MemberIP)
-		TTLCaches.Set(&Update)
+		TTLCaches.Set(&update)
 	}
 }
 
@@ -314,14 +312,14 @@ func handleJoin(payload []byte) {
 		// Receive new update, handle it
 		CurrentList.Insert(&Member{update.MemberTimeStamp, update.MemberIP,
 			update.MemberState})
-		TTLCaches.Set(&Update)
+		TTLCaches.Set(&update)
 	}
 }
 
 // Generate a new update and set it in TTL Cache
 func addUpdate2Cache(member *Member, updateType uint8) {
 	key := TTLCaches.RandGen.Uint64()
-	update := Update{key, 3, updateType, member.Timestamp, member.IP, member.State}
+	update := Update{key, 3, updateType, member.TimeStamp, member.IP, member.State}
 	TTLCaches.Set(&update)
 }
 
@@ -356,7 +354,7 @@ func initReply(addr string, seq uint16, payload []byte) {
 	var binBuffer bytes.Buffer
 
 	for i := 0; i < CurrentList.Size(); i += 1 {
-		member_ := CurrentList.RetrieveByIdx(i)
+		member_, _ := CurrentList.RetrieveByIdx(i)
 
 		binary.Write(&memBuffer, binary.BigEndian, member_)
 		binBuffer.Write(memBuffer.Bytes())
@@ -377,7 +375,7 @@ func initRequest(member *Member) {
 	binary.Write(&binBuffer, binary.BigEndian, member)
 
 	// Send piggyback Init Request
-	pingWithPayload(IntroducerIP+Port, binBuffer.Bytes(), MemInitRequest)
+	pingWithPayload(member, binBuffer.Bytes(), MemInitRequest)
 
 	// Start Init timer, if expires, exit process
 	init_timer = time.NewTimer(2 * time.Second)
@@ -405,11 +403,12 @@ func ack(addr string, seq uint16) {
 	ackWithPayload(addr, seq, nil, 0x00)
 }
 
-func pingWithPayload(addr string, payload []byte, flag uint8) {
+func pingWithPayload(member *Member, payload []byte, flag uint8) {
 	// Source for genearting random number
 	randSource := rand.NewSource(time.Now().UnixNano())
 	randGen := rand.New(randSource)
 	seq := randGen.Intn(0x01<<15 - 2)
+	addr := int2ip(member.IP).String() + Port
 
 	packet := Header{Ping | flag, uint16(seq), 0}
 	var binBuffer bytes.Buffer
@@ -428,16 +427,16 @@ func pingWithPayload(addr string, payload []byte, flag uint8) {
 	go func() {
 		<-PingAckTimeout[uint16(seq)].C
 		fmt.Printf("PING [%s]: %d TIMEOUT\n", addr, seq)
-		err = CurrentList.Update(member.TimeStamp, member.IP, StateSupspect)
+		err := CurrentList.Update(member.TimeStamp, member.IP, StateSuspect)
 		if err == nil {
-			addUpdate2Cache(&member, UpdateSuspect)
+			addUpdate2Cache(member, MemUpdateSuspect)
 		}
 		delete(PingAckTimeout, uint16(seq))
 	}()
 }
 
-func ping(addr string) {
-	pingWithPayload(addr, nil, 0x00)
+func ping(member *Member) {
+	pingWithPayload(member, nil, 0x00)
 }
 
 // Start the membership service and join in the group
@@ -456,7 +455,7 @@ func startService() bool {
 	LocalIP = getLocalIP().String()
 	timestamp := time.Now().UnixNano()
 	state := StateAlive
-	CurrentEntry = &Member{uint64(timestamp), ip2int(getLocalIP()), uint8(state)}
+	CurrentMember = &Member{uint64(timestamp), ip2int(getLocalIP()), uint8(state)}
 
 	// Create member list
 	CurrentList = NewMemberList(10)
@@ -467,11 +466,11 @@ func startService() bool {
 	TTLCaches = NewTtlCache()
 
 	if LocalIP == IntroducerIP {
-		CurrentEntry.State |= (StateIntro | StateMonit)
-		CurrentList.Insert(CurrentEntry)
+		CurrentMember.State |= (StateIntro | StateMonit)
+		CurrentList.Insert(CurrentMember)
 	} else {
 		// New member, send Init Request to the introducer
-		initRequest(CurrentEntry)
+		initRequest(CurrentMember)
 	}
 
 	return true
@@ -490,15 +489,15 @@ func main() {
 
 	for {
 		// Shuffle membership list and get a member IP
-		ip := CurrentList.Shuffle()
+		member := CurrentList.Shuffle()
 		// Get update entry from TTL Cache
 		update, flag, err := getUpdate()
 		// if no update there, do pure ping
 		if err != nil {
-			ping(int2ip(ip).String() + Port)
+			ping(member)
 		} else {
 			// Send update as payload of ping
-			pingWithPayload(int2ip(ip).String()+Port, update, flag)
+			pingWithPayload(member, update, flag)
 		}
 		time.Sleep(DetectPeriod)
 	}
