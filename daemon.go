@@ -281,11 +281,12 @@ func handleResume(payload []byte) {
 	updateID := update.UpdateID
 	if !isUpdateDuplicate(updateID) {
 		// Receive new update, handle it
-		timer := FailureTimeout[[2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)}]
-		timer.Stop()
-		delete(FailureTimeout, [2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)})
-		CurrentList.Update(update.MemberTimeStamp, update.MemberIP,
-			update.MemberState)
+		timer, ok := FailureTimeout[[2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)}]
+		if ok {
+			timer.Stop()
+			delete(FailureTimeout, [2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)})
+		}
+		CurrentList.Update(update.MemberTimeStamp, update.MemberIP, update.MemberState)
 		TTLCaches.Set(&update)
 	}
 }
@@ -380,7 +381,7 @@ func initRequest(member *Member) {
 	binary.Write(&binBuffer, binary.BigEndian, member)
 
 	// Send piggyback Init Request
-	pingWithPayload(member, binBuffer.Bytes(), MemInitRequest)
+	pingWithPayload(&Member{0, ip2int(net.ParseIP(IntroducerIP)[12:16]), 0}, binBuffer.Bytes(), MemInitRequest)
 
 	// Start Init timer, if expires, exit process
 	init_timer = time.NewTimer(2 * time.Second)
