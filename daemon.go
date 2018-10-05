@@ -113,6 +113,7 @@ func udpDaemon() {
 
 	go udpDaemonHandle(listen)
 	go periodicPing()
+	go periodicPingIntroducer()
 
 	wg.Wait()
 }
@@ -135,7 +136,7 @@ func periodicPingIntroducer() {
 		}
 
 		// Ping introducer period
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 
