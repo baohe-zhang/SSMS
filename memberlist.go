@@ -97,7 +97,7 @@ func (ml *MemberList) Delete(ts uint64, ip uint32) error {
 		ml.Members[idx] = ml.Members[ml.size-1]
 		ml.size -= 1
 		fmt.Printf("[INFO]: Delete member (%d, %d)\n", ts, ip)
-		mutex.Lock()
+		mutex.Unlock()
 		return nil
 	} else {
 		return errors.New("Invalid delete")
