@@ -24,7 +24,7 @@ const (
 	StateSuspect     = 0x01 << 1
 	StateMonit       = 0x01 << 2
 	StateIntro       = 0x01 << 3
-	IntroducerIP     = "10.193.185.82"
+	IntroducerIP     = "10.194.16.24"
 	Port             = ":6666"
 	DetectPeriod     = 500 * time.Millisecond
 )
@@ -425,7 +425,7 @@ func pingWithPayload(member *Member, payload []byte, flag uint8) {
 	timer := time.NewTimer(time.Second)
 	PingAckTimeout[uint16(seq)] = timer
 	go func() {
-		<-PingAckTimeout[uint16(seq)].C
+		<-timer.C
 		fmt.Printf("PING [%s]: %d TIMEOUT\n", addr, seq)
 		err := CurrentList.Update(member.TimeStamp, member.IP, StateSuspect)
 		if err == nil {
@@ -489,17 +489,19 @@ func main() {
 
 	for {
 		// Shuffle membership list and get a member IP
-		member := CurrentList.Shuffle()
-		// Get update entry from TTL Cache
-		update, flag, err := getUpdate()
-		// if no update there, do pure ping
-		if err != nil {
-			ping(member)
-		} else {
-			// Send update as payload of ping
-			pingWithPayload(member, update, flag)
+		if CurrentList.Size() > 0 {
+			member := CurrentList.Shuffle()
+			// Get update entry from TTL Cache
+			update, flag, err := getUpdate()
+			// if no update there, do pure ping
+			if err != nil {
+				ping(member)
+			} else {
+				// Send update as payload of ping
+				pingWithPayload(member, update, flag)
+			}
+			time.Sleep(DetectPeriod)
 		}
-		time.Sleep(DetectPeriod)
 	}
 
 }
