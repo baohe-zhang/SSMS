@@ -64,7 +64,7 @@ func (ml *MemberList) Insert(m *Member) error {
 	ml.Members[ml.size] = m
 	ml.size += 1
 	// Log Insert
-	fmt.Printf("[INFO]: Insert member ts: %d\n", m.TimeStamp)
+	fmt.Printf("[INFO]: Insert member (%d, %d)\n", m.TimeStamp, m.IP)
 
 	// Prolong the shuffle list
 	ml.shuffleList = append(ml.shuffleList, len(ml.shuffleList))
@@ -79,7 +79,7 @@ func (ml *MemberList) Delete(ts uint64, ip uint32) error {
 		// Replace the delete member with the last member
 		ml.Members[idx] = ml.Members[ml.size-1]
 		ml.size -= 1
-		fmt.Printf("[INFO]: Delete member ts: %d\n", ts)
+		fmt.Printf("[INFO]: Delete member (%d, %d)\n", ts, ip)
 
 		// Shorten the shuffle list
 		// Find the index of the maximum value in the shuffleList
@@ -105,7 +105,7 @@ func (ml *MemberList) Update(ts uint64, ip uint32, state uint8) error {
 	idx := ml.Select(ts, ip)
 	if idx > -1 {
 		ml.Members[idx].State = state
-		fmt.Printf("[INFO]: Update member ts: %d to state: %b\n", ts, state)
+		fmt.Printf("[INFO]: Update member (%d, %d) to state: %b\n", ts, ip, state)
 		return nil
 	} else {
 		return errors.New("Invalid update")
