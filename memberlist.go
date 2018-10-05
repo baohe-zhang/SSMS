@@ -91,6 +91,7 @@ func (ml *MemberList) Delete(ts uint64, ip uint32) error {
 		// Delete this maximum value and shorten the shuffList
 		ml.shuffleList[maxidx] = ml.shuffleList[len(ml.shuffleList)-1]
 		ml.shuffleList = ml.shuffleList[:len(ml.shuffleList)-1]
+		ml.curPos %= len(ml.shuffleList)
 		fmt.Printf("[INFO]: Shorten the length of shuffleList to: %d\n", len(ml.shuffleList))
 
 		// Replace the delete member with the last member
