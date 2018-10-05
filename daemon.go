@@ -422,6 +422,18 @@ func handleJoin(payload []byte) {
 			update.MemberState})
 		TTLCaches.Set(&update)
 	}
+
+	// If the handler is the introducer, then introducer send its info to the origin join sender.
+	if CurrentMember.IP == ip2int(net.ParseIP(IntroducerIP)) {
+		uid := TTLCaches.RandGen.Uint64()
+		reply_update := Update{uid, 1, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+		// Construct a buffer to carry binary update struct
+		var updateBuffer bytes.Buffer
+		binary.Write(&updateBuffer, binary.BigEndian, &reply_update)
+		// Send piggyback Join Update
+		fmt.Printf("[INFO]: Introducer reconnect, reply its info to the join sender\n")
+		pingWithPayload(&Member{update.MemberTimeStamp, update.MemberIP, update.MemberState}, updateBuffer.Bytes(), MemUpdateJoin)
+	}
 }
 
 // Generate a new update and set it in TTL Cache
