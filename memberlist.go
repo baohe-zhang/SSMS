@@ -155,10 +155,15 @@ func (ml *MemberList) Shuffle() *Member {
 	if ml.curPos == (len(ml.shuffleList) - 1) {
 		member := ml.Members[ml.shuffleList[ml.curPos]]
 		ml.curPos = (ml.curPos + 1) % len(ml.shuffleList)
-		// Shuffle the shuffleList
-		rand.Shuffle(len(ml.shuffleList), func(i, j int) {
+		// // Shuffle the shuffleList
+		// rand.Shuffle(len(ml.shuffleList), func(i, j int) {
+		// 	ml.shuffleList[i], ml.shuffleList[j] = ml.shuffleList[j], ml.shuffleList[i]
+		// })
+		// Shuffle without rand.Shuffle
+		for i := range ml.shuffleList {
+			j := rand.Intn(i + 1)
 			ml.shuffleList[i], ml.shuffleList[j] = ml.shuffleList[j], ml.shuffleList[i]
-		})
+		}
 		fmt.Printf("[INFO]: Member (%d, %d) is selected by shuffling\n", member.TimeStamp,
 			member.IP)
 		mutex.Unlock()
