@@ -1,22 +1,22 @@
-package main 
+package main
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
-	"errors"
 )
 
 type MemberList struct {
-	Members []*Member
-	size int
-	curPos int
+	Members     []*Member
+	size        int
+	curPos      int
 	shuffleList []int
 }
 
 type Member struct {
 	TimeStamp uint64
-	IP uint32
-	State uint8
+	IP        uint32
+	State     uint8
 }
 
 func NewMemberList(capacity int) *MemberList {
@@ -77,7 +77,7 @@ func (ml *MemberList) Delete(ts uint64, ip uint32) error {
 	idx := ml.Select(ts, ip)
 	if idx > -1 {
 		// Replace the delete member with the last member
-		ml.Members[idx] = ml.Members[ml.size - 1]
+		ml.Members[idx] = ml.Members[ml.size-1]
 		ml.size -= 1
 		fmt.Printf("[INFO]: Delete member ts: %d\n", ts)
 
@@ -90,8 +90,8 @@ func (ml *MemberList) Delete(ts uint64, ip uint32) error {
 			}
 		}
 		// Delete this maximum value
-		ml.shuffleList[maxidx] = ml.shuffleList[len(ml.shuffleList) - 1]
-		ml.shuffleList = ml.shuffleList[:len(ml.shuffleList) - 1 ]
+		ml.shuffleList[maxidx] = ml.shuffleList[len(ml.shuffleList)-1]
+		ml.shuffleList = ml.shuffleList[:len(ml.shuffleList)-1]
 		fmt.Printf("[INFO]: Shorten the length of shuffleList to: %d\n", len(ml.shuffleList))
 
 		return nil
@@ -135,16 +135,16 @@ func (ml *MemberList) Resize(capacity int) {
 func (ml *MemberList) PrintMemberList() {
 	fmt.Printf("------------------------------------------\n")
 	fmt.Printf("Size: %d, Capacity: %d\n", ml.size, len(ml.Members))
-	for idx := 0; idx < ml.size; idx +=1 {
+	for idx := 0; idx < ml.size; idx += 1 {
 		m := ml.Members[idx]
-		fmt.Printf("idx: %d, TS: %d, IP: %d, ST: %b\n", idx, 
+		fmt.Printf("idx: %d, TS: %d, IP: %d, ST: %b\n", idx,
 			m.TimeStamp, m.IP, m.State)
 	}
 	fmt.Printf("------------------------------------------\n")
 }
 
-// Return an round-robin random IP address of member
-func (ml *MemberList) Shuffle() uint32 {
+// Return an round-robin random member
+func (ml *MemberList) Shuffle() *Member {
 	// Shuffle the shuffleList when the curPos comes to the end
 	if ml.curPos == (len(ml.shuffleList) - 1) {
 		ip := ml.Members[ml.shuffleList[ml.curPos]].IP
@@ -154,15 +154,14 @@ func (ml *MemberList) Shuffle() uint32 {
 			ml.shuffleList[i], ml.shuffleList[j] = ml.shuffleList[j], ml.shuffleList[i]
 		})
 		fmt.Printf("[INFO]: IP: %d is selected by shuffling\n", ip)
-		return ip
+		return ml.Members[ml.shuffleList[ml.curPos]]
 	} else {
 		ip := ml.Members[ml.shuffleList[ml.curPos]].IP
 		ml.curPos = (ml.curPos + 1) % len(ml.shuffleList)
 		fmt.Printf("[INFO]: IP: %d is selected by shuffling\n", ip)
-		return ip
+		return ml.Members[ml.shuffleList[ml.curPos]]
 	}
 }
-
 
 // // Test client
 // func main() {
@@ -179,7 +178,6 @@ func (ml *MemberList) Shuffle() uint32 {
 // 	m9 := Member{9, 9, 9}
 // 	m10 := Member{10, 10, 10}
 
-
 // 	// Test insert and delete
 // 	ml.Insert(&m1)
 // 	ml.Insert(&m2)
@@ -195,7 +193,6 @@ func (ml *MemberList) Shuffle() uint32 {
 // 	ml.Update(2, 2, 4)
 // 	x = ml.Retrieve(2, 2)
 // 	fmt.Printf("update state: %d\n", x.State)
-
 
 // 	// Test shuffle for 4 rounds
 // 	for i := 0; i < 4; i++ {
@@ -231,11 +228,3 @@ func (ml *MemberList) Shuffle() uint32 {
 // 	ml.Shuffle()
 // 	ml.Shuffle()
 // }
-
-
-
-
-
-
-
-
