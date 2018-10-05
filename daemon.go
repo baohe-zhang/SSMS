@@ -30,7 +30,7 @@ const (
 	Port               = ":6666"
 	InitTimeoutPeriod  = 2000 * time.Millisecond
 	PingTimeoutPeriod  = 1000 * time.Millisecond
-	PingSendingPeriod  = 500 * time.Millisecond
+	PingSendingPeriod  = 250 * time.Millisecond
 	SuspectPeriod      = 1000 * time.Millisecond
 	PingIntroPeriod    = 10000 * time.Millisecond
 	UpdateDeletePeriod = 15000 * time.Millisecond
@@ -166,6 +166,7 @@ func periodicPing() {
 				time.Sleep(PingSendingPeriod)
 				continue
 			}
+			fmt.Printf("[INFO]: Member (%d, %d) is selected by shuffling\n", member.TimeStamp, member.IP)
 			// Get update entry from TTL Cache
 			update, flag, err := getUpdate()
 			// if no update there, do pure ping
@@ -432,14 +433,14 @@ func handleJoin(payload []byte) {
 		TTLCaches.Set(&update)
 		// If the handler is the introducer, then introducer send its info to the origin join sender.
 		if LocalIP == IntroducerIP {
-		uid := TTLCaches.RandGen.Uint64()
-		reply_update := Update{uid, 0, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
-		// Construct a buffer to carry binary update struct
-		var updateBuffer bytes.Buffer
-		binary.Write(&updateBuffer, binary.BigEndian, &reply_update)
-		// Send piggyback Join Update
-		fmt.Printf("[INFO]: Introducer reply its info to the Join sender\n")
-		pingWithPayload(&Member{update.MemberTimeStamp, update.MemberIP, update.MemberState}, updateBuffer.Bytes(), MemUpdateJoin)
+			uid := TTLCaches.RandGen.Uint64()
+			reply_update := Update{uid, 0, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+			// Construct a buffer to carry binary update struct
+			var updateBuffer bytes.Buffer
+			binary.Write(&updateBuffer, binary.BigEndian, &reply_update)
+			// Send piggyback Join Update
+			fmt.Printf("[INFO]: Introducer reply its info to the Join sender\n")
+			pingWithPayload(&Member{update.MemberTimeStamp, update.MemberIP, update.MemberState}, updateBuffer.Bytes(), MemUpdateJoin)
 		}
 	}
 }
