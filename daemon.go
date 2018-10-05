@@ -107,26 +107,32 @@ func udpDaemon() {
 
 	for {
 		go udpDaemonHandle(listen)
-		// Shuffle membership list and get a member IP
-		if CurrentList.Size() > 0 {
-			member := CurrentList.Shuffle()
-			// Do not pick itself as the ping target
-			if member.TimeStamp == CurrentMember.TimeStamp && member.IP == CurrentMember.IP {
-				time.Sleep(DetectPeriod)
-				continue
-			}
-			// Get update entry from TTL Cache
-			update, flag, err := getUpdate()
-			// if no update there, do pure ping
-			if err != nil {
-				ping(member)
-			} else {
-				// Send update as payload of ping
-				pingWithPayload(member, update, flag)
-			}
-		}
-		time.Sleep(DetectPeriod)
+		periodicPing()
 	}
+}
+
+// Periodically ping a randomly selected target
+func periodicPing() {
+	// Shuffle membership list and get a member
+	if CurrentList.Size() > 0 {
+		member := CurrentList.Shuffle()
+		// Do not pick itself as the ping target
+		if member.TimeStamp == CurrentMember.TimeStamp && member.IP == CurrentMember.IP {
+			time.Sleep(DetectPeriod)
+			return
+		}
+		// Get update entry from TTL Cache
+		update, flag, err := getUpdate()
+		// if no update there, do pure ping
+		if err != nil {
+			ping(member)
+		} else {
+			// Send update as payload of ping
+			pingWithPayload(member, update, flag)
+		}
+	}
+	time.Sleep(DetectPeriod)
+
 }
 
 func udpDaemonHandle(connect *net.UDPConn) {
@@ -561,8 +567,5 @@ func main() {
 
 	// Start daemon
 	udpDaemon()
-
-	for {
-	}
 
 }
