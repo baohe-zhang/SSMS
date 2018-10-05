@@ -497,7 +497,9 @@ func main() {
 		// Shuffle membership list and get a member IP
 		if CurrentList.Size() > 0 {
 			member := CurrentList.Shuffle()
+			// Do not pick itself as the ping target
 			if member.TimeStamp == CurrentMember.TimeStamp && member.IP == CurrentMember.IP {
+				time.Sleep(DetectPeriod)
 				continue
 			}
 			// Get update entry from TTL Cache
