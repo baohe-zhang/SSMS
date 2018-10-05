@@ -513,6 +513,7 @@ func startService() bool {
 
 	// Make necessary tables
 	PingAckTimeout = make(map[uint16]*time.Timer)
+	FailureTimeout = make(map[[2]uint64]*time.Timer)
 	DuplicateUpdateCaches = make(map[uint64]uint8)
 	TTLCaches = NewTtlCache()
 
