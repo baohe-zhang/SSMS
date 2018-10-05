@@ -140,7 +140,7 @@ func periodicPingIntroducer() {
 		if !CurrentList.isIntroducerAlive(ip2int(net.ParseIP(IntroducerIP))) {
 			// Construct a join update
 			uid := TTLCaches.RandGen.Uint64()
-			update := Update{uid, 1, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+			update := Update{uid, 0, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 			// Construct a buffer to carry binary update struct
 			var updateBuffer bytes.Buffer
 			binary.Write(&updateBuffer, binary.BigEndian, &update)
