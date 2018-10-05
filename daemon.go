@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"time"
+	"sync"
 )
 
 const (
@@ -24,7 +25,8 @@ const (
 	StateSuspect     = 0x01 << 1
 	StateMonit       = 0x01 << 2
 	StateIntro       = 0x01 << 3
-	IntroducerIP     = "10.0.0.180"
+	//IntroducerIP     = "10.0.0.180"
+	IntroducerIP     = "10.193.185.82"
 	Port             = ":6666"
 	DetectPeriod     = 500 * time.Millisecond
 )
@@ -105,164 +107,171 @@ func udpDaemon() {
 	listen, err := net.ListenUDP("udp", udpAddr)
 	printError(err)
 
-	for {
-		go udpDaemonHandle(listen)
-		periodicPing()
-	}
+	// Use waitgroup to 
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go udpDaemonHandle(listen)
+	go periodicPing()
+
+	wg.Wait()
 }
 
 // Periodically ping a randomly selected target
 func periodicPing() {
-	// Shuffle membership list and get a member
-	if CurrentList.Size() > 0 {
-		member := CurrentList.Shuffle()
-		// Do not pick itself as the ping target
-		if member.TimeStamp == CurrentMember.TimeStamp && member.IP == CurrentMember.IP {
-			time.Sleep(DetectPeriod)
-			return
+	for {
+		// Shuffle membership list and get a member
+		if CurrentList.Size() > 0 {
+			member := CurrentList.Shuffle()
+			// Do not pick itself as the ping target
+			if member.TimeStamp == CurrentMember.TimeStamp && member.IP == CurrentMember.IP {
+				time.Sleep(DetectPeriod)
+				continue
+			}
+			// Get update entry from TTL Cache
+			update, flag, err := getUpdate()
+			// if no update there, do pure ping
+			if err != nil {
+				ping(member)
+			} else {
+				// Send update as payload of ping
+				pingWithPayload(member, update, flag)
+			}
 		}
-		// Get update entry from TTL Cache
-		update, flag, err := getUpdate()
-		// if no update there, do pure ping
-		if err != nil {
-			ping(member)
-		} else {
-			// Send update as payload of ping
-			pingWithPayload(member, update, flag)
-		}
+		time.Sleep(DetectPeriod)
 	}
-	time.Sleep(DetectPeriod)
-
 }
 
 func udpDaemonHandle(connect *net.UDPConn) {
-	// Making a buffer to accept the grep command content from client
-	buffer := make([]byte, 1024)
-	n, addr, err := connect.ReadFromUDP(buffer)
-	printError(err)
+	for {
+		// Making a buffer to accept the grep command content from client
+		buffer := make([]byte, 1024)
+		n, addr, err := connect.ReadFromUDP(buffer)
+		printError(err)
 
-	// Seperate header and payload
-	const HeaderLength = 4 // Header Length 4 bytes
+		// Seperate header and payload
+		const HeaderLength = 4 // Header Length 4 bytes
 
-	// Read header
-	headerBinData := buffer[:HeaderLength]
-	var header Header
-	buf := bytes.NewReader(headerBinData)
-	err = binary.Read(buf, binary.BigEndian, &header)
-	printError(err)
-
-	// Read payload
-	payload := buffer[HeaderLength:n]
-
-	// Resume detection
-
-	if header.Type&Ping != 0 {
-
-		// Check whether this ping carries Init Request
-		if header.Type&MemInitRequest != 0 {
-			// Handle Init Request
-			fmt.Printf("[INFO]: Receive Init Request from [%s]: with seq %d\n", addr.IP.String(), header.Seq)
-			initReply(addr.IP.String(), header.Seq, payload)
-
-		} else if header.Type&MemUpdateSuspect != 0 {
-			fmt.Printf("[INFO]: Handle suspect update\n")
-			handleSuspect(payload)
-			// Get update entry from TTL Cache
-			update, flag, err := getUpdate()
-			// if no update there, do pure ping
-			if err != nil {
-				ack(addr.IP.String(), header.Seq)
-			} else {
-				// Send update as payload of ping
-				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
-			}
-
-		} else if header.Type&MemUpdateResume != 0 {
-			fmt.Printf("[INFO]: Handle resume update\n")
-			handleResume(payload)
-			// Get update entry from TTL Cache
-			update, flag, err := getUpdate()
-			// if no update there, do pure ping
-			if err != nil {
-				ack(addr.IP.String(), header.Seq)
-			} else {
-				// Send update as payload of ping
-				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
-			}
-
-		} else if header.Type&MemUpdateLeave != 0 {
-			fmt.Printf("[INFO]: Handle leave update\n")
-			handleLeave(payload)
-			// Get update entry from TTL Cache
-			update, flag, err := getUpdate()
-			// if no update there, do pure ping
-			if err != nil {
-				ack(addr.IP.String(), header.Seq)
-			} else {
-				// Send update as payload of ping
-				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
-			}
-
-		} else if header.Type&MemUpdateJoin != 0 {
-			fmt.Printf("[INFO]: Handle join update\n")
-			handleJoin(payload)
-			// Get update entry from TTL Cache
-			update, flag, err := getUpdate()
-			// if no update there, do pure ping
-			if err != nil {
-				ack(addr.IP.String(), header.Seq)
-			} else {
-				// Send update as payload of ping
-				ackWithPayload(addr.IP.String(), header.Seq, update, flag)
-			}
-
-		} else {
-			// Ping with no payload,
-			// No handling payload needed
-			// Check whether update sending needed
-			// If no, simply reply with ack
-			ack(addr.IP.String(), header.Seq)
-		}
-
-	} else if header.Type&Ack != 0 {
-
-		// Receive Ack, stop ping timer
-		timer, ok := PingAckTimeout[header.Seq-1]
-		if ok {
-			timer.Stop()
-			fmt.Printf("[INFO]: Receive ACK from [%s] with seq %d\n", addr.IP.String(), header.Seq)
-			delete(PingAckTimeout, header.Seq-1)
-		}
+		// Read header
+		headerBinData := buffer[:HeaderLength]
+		var header Header
+		buf := bytes.NewReader(headerBinData)
+		err = binary.Read(buf, binary.BigEndian, &header)
+		printError(err)
 
 		// Read payload
 		payload := buffer[HeaderLength:n]
 
-		if header.Type&MemInitReply != 0 {
-			// Ack carries Init Reply, stop init timer
-			stop := init_timer.Stop()
-			if stop {
-				fmt.Printf("[INFO]: Receive Init Reply from [%s] with %d\n", addr.IP.String(), header.Seq)
+		// Resume detection
+
+		if header.Type&Ping != 0 {
+
+			// Check whether this ping carries Init Request
+			if header.Type&MemInitRequest != 0 {
+				// Handle Init Request
+				fmt.Printf("[INFO]: Receive Init Request from [%s]: with seq %d\n", addr.IP.String(), header.Seq)
+				initReply(addr.IP.String(), header.Seq, payload)
+
+			} else if header.Type&MemUpdateSuspect != 0 {
+				fmt.Printf("[INFO]: Handle suspect update\n")
+				handleSuspect(payload)
+				// Get update entry from TTL Cache
+				update, flag, err := getUpdate()
+				// if no update there, do pure ping
+				if err != nil {
+					ack(addr.IP.String(), header.Seq)
+				} else {
+					// Send update as payload of ping
+					ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+				}
+
+			} else if header.Type&MemUpdateResume != 0 {
+				fmt.Printf("[INFO]: Handle resume update\n")
+				handleResume(payload)
+				// Get update entry from TTL Cache
+				update, flag, err := getUpdate()
+				// if no update there, do pure ping
+				if err != nil {
+					ack(addr.IP.String(), header.Seq)
+				} else {
+					// Send update as payload of ping
+					ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+				}
+
+			} else if header.Type&MemUpdateLeave != 0 {
+				fmt.Printf("[INFO]: Handle leave update\n")
+				handleLeave(payload)
+				// Get update entry from TTL Cache
+				update, flag, err := getUpdate()
+				// if no update there, do pure ping
+				if err != nil {
+					ack(addr.IP.String(), header.Seq)
+				} else {
+					// Send update as payload of ping
+					ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+				}
+
+			} else if header.Type&MemUpdateJoin != 0 {
+				fmt.Printf("[INFO]: Handle join update\n")
+				handleJoin(payload)
+				// Get update entry from TTL Cache
+				update, flag, err := getUpdate()
+				// if no update there, do pure ping
+				if err != nil {
+					ack(addr.IP.String(), header.Seq)
+				} else {
+					// Send update as payload of ping
+					ackWithPayload(addr.IP.String(), header.Seq, update, flag)
+				}
+
+			} else {
+				// Ping with no payload,
+				// No handling payload needed
+				// Check whether update sending needed
+				// If no, simply reply with ack
+				ack(addr.IP.String(), header.Seq)
 			}
-			handleInitReply(payload)
 
-		} else if header.Type&MemUpdateSuspect != 0 {
-			fmt.Printf("[INFO]: Handle suspect update\n")
-			handleSuspect(payload)
+		} else if header.Type&Ack != 0 {
 
-		} else if header.Type&MemUpdateResume != 0 {
-			fmt.Printf("[INFO]: Handle resume update\n")
-			handleResume(payload)
+			// Receive Ack, stop ping timer
+			timer, ok := PingAckTimeout[header.Seq-1]
+			if ok {
+				timer.Stop()
+				fmt.Printf("[INFO]: Receive ACK from [%s] with seq %d\n", addr.IP.String(), header.Seq)
+				delete(PingAckTimeout, header.Seq-1)
+			}
 
-		} else if header.Type&MemUpdateLeave != 0 {
-			fmt.Printf("[INFO]: Handle leave update\n")
-			handleLeave(payload)
+			// Read payload
+			payload := buffer[HeaderLength:n]
 
-		} else if header.Type&MemUpdateJoin != 0 {
-			fmt.Printf("[INFO]: Handle join update\n")
-			handleJoin(payload)
+			if header.Type&MemInitReply != 0 {
+				// Ack carries Init Reply, stop init timer
+				stop := init_timer.Stop()
+				if stop {
+					fmt.Printf("[INFO]: Receive Init Reply from [%s] with %d\n", addr.IP.String(), header.Seq)
+				}
+				handleInitReply(payload)
 
-		} else {
-			fmt.Printf("[INFO]: Receive pure ack\n")
+			} else if header.Type&MemUpdateSuspect != 0 {
+				fmt.Printf("[INFO]: Handle suspect update\n")
+				handleSuspect(payload)
+
+			} else if header.Type&MemUpdateResume != 0 {
+				fmt.Printf("[INFO]: Handle resume update\n")
+				handleResume(payload)
+
+			} else if header.Type&MemUpdateLeave != 0 {
+				fmt.Printf("[INFO]: Handle leave update\n")
+				handleLeave(payload)
+
+			} else if header.Type&MemUpdateJoin != 0 {
+				fmt.Printf("[INFO]: Handle join update\n")
+				handleJoin(payload)
+
+			} else {
+				fmt.Printf("[INFO]: Receive pure ack\n")
+			}
 		}
 	}
 }
@@ -496,7 +505,7 @@ func pingWithPayload(member *Member, payload []byte, flag uint8) {
 	PingAckTimeout[uint16(seq)] = timer
 	go func() {
 		<-timer.C
-		fmt.Printf("[INFO]: Ping (%s, %d) timeour\n", addr, seq)
+		fmt.Printf("[INFO]: Ping (%s, %d) timeout\n", addr, seq)
 		err := CurrentList.Update(member.TimeStamp, member.IP, StateSuspect)
 		if err == nil {
 			addUpdate2Cache(member, MemUpdateSuspect)
