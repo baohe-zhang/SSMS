@@ -138,11 +138,11 @@ func udpDaemonHandle(connect *net.UDPConn) {
 		// Check whether this ping carries Init Request
 		if header.Type&MemInitRequest != 0 {
 			// Handle Init Request
-			fmt.Printf("RECEIVE INIT REQUEST FROM [%s]: %d\n", addr.IP.String(), header.Seq)
+			fmt.Printf("[INFO]: Receive Init Request from [%s]: with seq %d\n", addr.IP.String(), header.Seq)
 			initReply(addr.IP.String(), header.Seq, payload)
 
 		} else if header.Type&MemUpdateSuspect != 0 {
-			fmt.Printf("handle suspect update\n")
+			fmt.Printf("[INFO]: Handle suspect update\n")
 			handleSuspect(payload)
 			// Get update entry from TTL Cache
 			update, flag, err := getUpdate()
@@ -156,7 +156,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 
 
 		} else if header.Type&MemUpdateResume != 0 {
-			fmt.Printf("handle resume update\n")
+			fmt.Printf("[INFO]: Handle resume update\n")
 			handleResume(payload)
 			// Get update entry from TTL Cache
 			update, flag, err := getUpdate()
@@ -170,7 +170,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 
 
 		} else if header.Type&MemUpdateLeave != 0 {
-			fmt.Printf("handle leave update\n")
+			fmt.Printf("[INFO]: Handle leave update\n")
 			handleLeave(payload)
 			// Get update entry from TTL Cache
 			update, flag, err := getUpdate()
@@ -184,7 +184,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 
 
 		} else if header.Type&MemUpdateJoin != 0 {
-			fmt.Printf("handle join update\n")
+			fmt.Printf("[INFO]: Handle join update\n")
 			handleJoin(payload)
 			// Get update entry from TTL Cache
 			update, flag, err := getUpdate()
@@ -211,7 +211,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 		timer, ok := PingAckTimeout[header.Seq-1]
 		if ok {
 			timer.Stop()
-			fmt.Printf("RECEIVE ACK FROM [%s]: %d\n", addr.IP.String(), header.Seq)
+			fmt.Printf("[INFO]: Receive ACK from [%s] with seq %d\n", addr.IP.String(), header.Seq)
 			delete(PingAckTimeout, header.Seq-1)
 		}
 
@@ -222,28 +222,28 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			// Ack carries Init Reply, stop init timer
 			stop := init_timer.Stop()
 			if stop {
-				fmt.Printf("RECEIVE INIT REPLY FROM [%s]: %d\n", addr.IP.String(), header.Seq)
+				fmt.Printf("[INFO]: Receive Init Reply from [%s] with %d\n", addr.IP.String(), header.Seq)
 			}
 			handleInitReply(payload)
 
 		} else if header.Type&MemUpdateSuspect != 0 {
-			fmt.Printf("handle suspect update\n")
+			fmt.Printf("[INFO]: Handle suspect update\n")
 			handleSuspect(payload)
 
 		} else if header.Type&MemUpdateResume != 0 {
-			fmt.Printf("handle resume update\n")
+			fmt.Printf("[INFO]: Handle resume update\n")
 			handleResume(payload)
 
 		} else if header.Type&MemUpdateLeave != 0 {
-			fmt.Printf("handle leave update\n")
+			fmt.Printf("[INFO]: Handle leave update\n")
 			handleLeave(payload)
 
 		} else if header.Type&MemUpdateJoin != 0 {
-			fmt.Printf("handle join update\n")
+			fmt.Printf("[INFO]: Handle join update\n")
 			handleJoin(payload)
 
 		} else {
-			fmt.Printf("receive pure ack\n")
+			fmt.Printf("[INFO]: Receive pure ack\n")
 		}
 	}
 }
