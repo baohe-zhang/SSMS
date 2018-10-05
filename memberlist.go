@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"errors"
 )
 
 type MemberList struct {
@@ -29,24 +30,32 @@ func (ml *MemberList) Size() int {
 	return ml.size
 }
 
-func (ml *MemberList) Retrieve(ts uint64, ip uint32) *Member {
+// Return the member if exists, otherwise return error
+func (ml *MemberList) Retrieve(ts uint64, ip uint32) (*Member, error) {
 	idx := ml.Select(ts, ip)
 	if idx > -1 {
-		return ml.Members[idx]
+		return ml.Members[idx], nil
 	} else {
-		panic("[ERROR]: Invalid retrieve")
+		return nil, errors.New("Invalid retrieve ts and ip")
 	}
 }
 
-func (ml *MemberList) RetrieveByIdx(idx int) *Member {
+// Return the member if exists, otherwise return error
+func (ml *MemberList) RetrieveByIdx(idx int) (*Member, error) {
 	if idx < ml.size && idx > -1 {
-		return ml.Members[idx]
+		return ml.Members[idx], nil
 	} else {
-		panic("[ERROR]: Invalid retrieve")
+		return nil, errors.New("Invalid retrieve index")
 	}
 }
 
-func (ml *MemberList) Insert(m *Member) {
+// If insert member exists, return err
+func (ml *MemberList) Insert(m *Member) error {
+	// Check whether insert member exists
+	if ml.Select(m.TimeStamp, m.IP) != -1 {
+		return errors.New("Member already exists")
+	}
+
 	// Resize when needed
 	if ml.size == len(ml.Members) {
 		ml.Resize(ml.size * 2)
@@ -60,40 +69,46 @@ func (ml *MemberList) Insert(m *Member) {
 	// Prolong the shuffle list
 	ml.shuffleList = append(ml.shuffleList, len(ml.shuffleList))
 	fmt.Printf("[INFO]: Prolong the length of shuffleList to: %d\n", len(ml.shuffleList))
+	return nil
 }
 
-func (ml *MemberList) Delete(ts uint64, ip uint32) {
+// If delete member doesn't exist, return error
+func (ml *MemberList) Delete(ts uint64, ip uint32) error {
 	idx := ml.Select(ts, ip)
 	if idx > -1 {
 		// Replace the delete member with the last member
 		ml.Members[idx] = ml.Members[ml.size - 1]
 		ml.size -= 1
 		fmt.Printf("[INFO]: Delete member ts: %d\n", ts)
-	} else {
-		panic("[ERROR]: Invalid delete")
-	}
 
-	// Shorten the shuffle list
-	// Find the index of the maximum value in the shuffleList
-	maxidx := 0
-	for idx := 1; idx < len(ml.shuffleList); idx += 1 {
-		if ml.shuffleList[idx] > ml.shuffleList[maxidx] {
-			maxidx = idx
+		// Shorten the shuffle list
+		// Find the index of the maximum value in the shuffleList
+		maxidx := 0
+		for idx := 1; idx < len(ml.shuffleList); idx += 1 {
+			if ml.shuffleList[idx] > ml.shuffleList[maxidx] {
+				maxidx = idx
+			}
 		}
+		// Delete this maximum value
+		ml.shuffleList[maxidx] = ml.shuffleList[len(ml.shuffleList) - 1]
+		ml.shuffleList = ml.shuffleList[:len(ml.shuffleList) - 1 ]
+		fmt.Printf("[INFO]: Shorten the length of shuffleList to: %d\n", len(ml.shuffleList))
+
+		return nil
+	} else {
+		return errors.New("Invalid delete")
 	}
-	// Delete this maximum value
-	ml.shuffleList[maxidx] = ml.shuffleList[len(ml.shuffleList) - 1]
-	ml.shuffleList = ml.shuffleList[:len(ml.shuffleList) - 1 ]
-	fmt.Printf("[INFO]: Shorten the length of shuffleList to: %d\n", len(ml.shuffleList))
 }
 
-func (ml *MemberList) Update(ts uint64, ip uint32, state uint8) {
+// If update member doesn't exist, return error
+func (ml *MemberList) Update(ts uint64, ip uint32, state uint8) error {
 	idx := ml.Select(ts, ip)
 	if idx > -1 {
 		ml.Members[idx].State = state
-		fmt.Printf("[INFO]: Update member ts: %d to state: %d\n", ts, state)
+		fmt.Printf("[INFO]: Update member ts: %d to state: %b\n", ts, state)
+		return nil
 	} else {
-		panic("[ERROR]: Invalid update")
+		return errors.New("Invalid update")
 	}
 }
 
