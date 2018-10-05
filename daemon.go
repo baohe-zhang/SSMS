@@ -66,7 +66,7 @@ func getLocalIP() net.IP {
 
 // Convert net.IP to uint32
 func ip2int(ip net.IP) uint32 {
-	return binary.BigEndian.Uint32(ip)
+	return binary.BigEndian.Uint32(ip[12:16])
 }
 
 // Convert uint32 to net.IP
@@ -381,7 +381,7 @@ func initRequest(member *Member) {
 	binary.Write(&binBuffer, binary.BigEndian, member)
 
 	// Send piggyback Init Request
-	pingWithPayload(&Member{0, ip2int(net.ParseIP(IntroducerIP)[12:16]), 0}, binBuffer.Bytes(), MemInitRequest)
+	pingWithPayload(&Member{0, ip2int(net.ParseIP(IntroducerIP)), 0}, binBuffer.Bytes(), MemInitRequest)
 
 	// Start Init timer, if expires, exit process
 	init_timer = time.NewTimer(2 * time.Second)
