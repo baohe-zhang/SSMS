@@ -34,6 +34,7 @@ const (
 	SuspectPeriod      = 1000 * time.Millisecond
 	PingIntroPeriod    = 10000 * time.Millisecond
 	UpdateDeletePeriod = 15000 * time.Millisecond
+	PrintMemListPeriod = 5000 * time.Millisecond
 )
 
 type Header struct {
@@ -119,8 +120,16 @@ func udpDaemon() {
 	go udpDaemonHandle(listen)
 	go periodicPing()
 	go periodicPingIntroducer()
+	go periodicPrintMemberList()
 
 	wg.Wait()
+}
+
+func periodicPrintMemberList() {
+	for {
+		CurrentList.PrintMemberList()
+		time.Sleep(PrintMemListPeriod)
+	}
 }
 
 func periodicPingIntroducer() {
