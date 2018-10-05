@@ -107,7 +107,7 @@ func udpDaemon() {
 	listen, err := net.ListenUDP("udp", udpAddr)
 	printError(err)
 
-	// Use waitgroup to 
+	// Use waitgroup
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -117,10 +117,33 @@ func udpDaemon() {
 	wg.Wait()
 }
 
+func periodicPingIntroducer() {
+	for {
+		// Periodiclly ping introducer when introducer is failed.
+		// Piggyback it's self member info
+		// Use for introducer revive
+		if !CurrentList.isIntroducerAlive(ip2int(net.ParseIP(IntroducerIP))) {
+			// Construct a join update
+			uid := TTLCaches.RandGen.Uint64()
+			update := Update{uid, 1, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+			// Construct a buffer to carry binary update struct
+			var updateBuffer bytes.Buffer
+			binary.Write(&updateBuffer, binary.BigEndian, &update)
+			// Send piggyback Join Update
+			fmt.Printf("[INFO]: Introducer failed, try to ping introducer")
+			pingWithPayload(&Member{0, ip2int(net.ParseIP(IntroducerIP)), 0}, updateBuffer.Bytes(), MemUpdateJoin)
+		}
+
+		// Ping introducer period
+		time.Sleep(10 * time.Second)
+	}
+}
+
 // Periodically ping a randomly selected target
 func periodicPing() {
 	for {
 		// Shuffle membership list and get a member
+		// Only executed when the membership list is not empty
 		if CurrentList.Size() > 0 {
 			member := CurrentList.Shuffle()
 			// Do not pick itself as the ping target
