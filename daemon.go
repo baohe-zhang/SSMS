@@ -433,7 +433,7 @@ func handleJoin(payload []byte) {
 		// If the handler is the introducer, then introducer send its info to the origin join sender.
 		if LocalIP == IntroducerIP {
 		uid := TTLCaches.RandGen.Uint64()
-		reply_update := Update{uid, 1, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+		reply_update := Update{uid, 0, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 		// Construct a buffer to carry binary update struct
 		var updateBuffer bytes.Buffer
 		binary.Write(&updateBuffer, binary.BigEndian, &reply_update)
