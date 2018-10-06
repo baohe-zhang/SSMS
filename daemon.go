@@ -172,6 +172,7 @@ func initiateLeave() {
 	uid := TTLCaches.RandGen.Uint64()
 	update := Update{uid, 3, MemUpdateLeave, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 	TTLCaches.Set(&update)
+	isUpdateDuplicate(uid)
 	Logger.Info("Member (%d, %d) leaves", CurrentMember.TimeStamp, CurrentMember.IP)
 	time.Sleep(2 * time.Second)
 	initilize()
@@ -254,7 +255,8 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			reserved := uint8(0x00)
 			// Check whether this ping's source IP is within the memberlist
 			// IF not, set reserved 0xff, ask for sender's join update
-			if !CurrentList.ContainsIP(ip2int(addr.IP)) {
+			// Introducer will not participate this procedure
+			if (!CurrentList.ContainsIP(ip2int(addr.IP))) && (LocalIP != IntroducerIP) {
 				reserved = 0xff
 				Logger.Info("Receive ping from unknown member, set reserved field 0xff")
 			}
@@ -342,6 +344,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				uid := TTLCaches.RandGen.Uint64()
 				update := Update{uid, 3, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 				TTLCaches.Set(&update)
+				isUpdateDuplicate(uid)
 				Logger.Info("Receive header with reserved 0xff, disseminate join update")
 			}
 
@@ -504,6 +507,7 @@ func handleJoin(payload []byte) {
 			uid := TTLCaches.RandGen.Uint64()
 			reply_update := Update{uid, 3, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 			TTLCaches.Set(&reply_update)
+			fmt.Printf("[INFO]: Introducer set its info update to the cache\n")
 			/*
 				// Construct a buffer to carry binary update struct
 				var updateBuffer bytes.Buffer
@@ -521,6 +525,8 @@ func addUpdate2Cache(member *Member, updateType uint8) {
 	key := TTLCaches.RandGen.Uint64()
 	update := Update{key, 3, updateType, member.TimeStamp, member.IP, member.State}
 	TTLCaches.Set(&update)
+	// This daemon is the update producer, add this update to the update duplicate cache
+	isUpdateDuplicate(key)
 }
 
 // Handle the full membership list(InitReply) received from introducer
