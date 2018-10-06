@@ -507,6 +507,7 @@ func handleJoin(payload []byte) {
 			uid := TTLCaches.RandGen.Uint64()
 			reply_update := Update{uid, 3, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 			TTLCaches.Set(&reply_update)
+			isUpdateDuplicate(uid)
 			fmt.Printf("[INFO]: Introducer set its info update to the cache\n")
 			/*
 				// Construct a buffer to carry binary update struct
