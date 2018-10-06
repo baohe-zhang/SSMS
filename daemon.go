@@ -616,6 +616,7 @@ func startService() bool {
 
 	// Create self entry
 	LocalIP = getLocalIP().String()
+	Logger = NewSsmsLogger(LocalIP)
 	timestamp := time.Now().UnixNano()
 	state := StateAlive
 	CurrentMember = &Member{uint64(timestamp), ip2int(getLocalIP()), uint8(state)}
@@ -628,7 +629,6 @@ func startService() bool {
 	FailureTimeout = make(map[[2]uint64]*time.Timer)
 	DuplicateUpdateCaches = make(map[uint64]uint8)
 	TTLCaches = NewTtlCache()
-	Logger = NewSsmsLogger(LocalIP)
 
 	if LocalIP == IntroducerIP {
 		CurrentMember.State |= (StateIntro | StateMonit)
