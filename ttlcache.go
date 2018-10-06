@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	//"fmt"
 	"math/rand"
 	"time"
 )
@@ -21,7 +21,7 @@ func NewTtlCache() *TtlCache {
 	randGen := rand.New(randSource)
 	ttllist := make([]*Update, 0)
 
-	fmt.Printf("[INFO]: TTL cache created\n")
+	Logger.Debug("TTL cache created\n")
 	ttlcache := TtlCache{ttllist, 0, randGen}
 	return &ttlcache
 }
@@ -29,17 +29,17 @@ func NewTtlCache() *TtlCache {
 // Set the update packet in TTL Cache
 func (tc *TtlCache) Set(val *Update) {
 	if val.TTL < 1 {
-		fmt.Printf("[INFO]: TTL cache cannot set for ttl=0 %d\n", val.UpdateID)
+		Logger.Debug("TTL cache cannot set for ttl=0 %d\n", val.UpdateID)
 		return
 	}
 	tc.TtlList = append(tc.TtlList, val)
-	fmt.Printf("[INFO]: TTL cache add a new, TTL: %d\n", val.TTL)
+	Logger.Debug("TTL cache add a new, TTL: %d\n", val.TTL)
 }
 
 // Get one entry each time in TTL Cache
 func (tc *TtlCache) Get() (*Update, error) {
 	if len(tc.TtlList) == 0 {
-		fmt.Printf("[INFO]: TTL cache empty\n")
+		Logger.Debug("TTL cache empty\n")
 		return nil, errors.New("Empty TTL List, cannot Get()")
 	}
 	cur := tc.TtlList[tc.Pointer]
@@ -47,7 +47,7 @@ func (tc *TtlCache) Get() (*Update, error) {
 	update := Update{cur.UpdateID, cur.TTL, cur.UpdateType, cur.MemberTimeStamp, cur.MemberIP, cur.MemberState}
 	cur.TTL -= 1
 	if cur.TTL < 1 {
-		fmt.Printf("[INFO]: TTL cache expired %d\n", cur.UpdateID)
+		Logger.Debug("TTL cache expired %d\n", cur.UpdateID)
 		// Delete this entry
 		copy(tc.TtlList[tc.Pointer:], tc.TtlList[tc.Pointer+1:])
 		tc.TtlList[len(tc.TtlList)-1] = nil

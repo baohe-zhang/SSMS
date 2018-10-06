@@ -22,7 +22,7 @@ type Member struct {
 func NewMemberList(capacity int) *MemberList {
 	ml := MemberList{}
 	ml.Members = make([]*Member, capacity)
-	fmt.Printf("[INFO]: Member list created\n")
+	Logger.Info("Member list created\n")
 	return &ml
 }
 
@@ -64,11 +64,11 @@ func (ml *MemberList) Insert(m *Member) error {
 	ml.Members[ml.size] = m
 	ml.size += 1
 	// Log Insert
-	fmt.Printf("[INFO]: Insert member (%d, %d)\n", m.TimeStamp, m.IP)
+	Logger.Info("Insert member (%d, %d)\n", m.TimeStamp, m.IP)
 
 	// Prolong the shuffle list
 	ml.shuffleList = append(ml.shuffleList, len(ml.shuffleList))
-	fmt.Printf("[INFO]: Prolong the length of shuffleList to: %d\n", len(ml.shuffleList))
+	Logger.Info("Prolong the length of shuffleList to: %d\n", len(ml.shuffleList))
 	return nil
 }
 
@@ -88,12 +88,12 @@ func (ml *MemberList) Delete(ts uint64, ip uint32) error {
 		ml.shuffleList[maxidx] = ml.shuffleList[len(ml.shuffleList)-1]
 		ml.shuffleList = ml.shuffleList[:len(ml.shuffleList)-1]
 		ml.curPos %= len(ml.shuffleList)
-		fmt.Printf("[INFO]: Shorten the length of shuffleList to: %d\n", len(ml.shuffleList))
+		Logger.Info("Shorten the length of shuffleList to: %d\n", len(ml.shuffleList))
 
 		// Replace the delete member with the last member
 		ml.Members[idx] = ml.Members[ml.size-1]
 		ml.size -= 1
-		fmt.Printf("[INFO]: Delete member (%d, %d)\n", ts, ip)
+		Logger.Info("Delete member (%d, %d)\n", ts, ip)
 		return nil
 	} else {
 		return errors.New("Invalid delete")
@@ -105,7 +105,7 @@ func (ml *MemberList) Update(ts uint64, ip uint32, state uint8) error {
 	idx := ml.Select(ts, ip)
 	if idx > -1 {
 		ml.Members[idx].State = state
-		fmt.Printf("[INFO]: Update member (%d, %d) to state: %b\n", ts, ip, state)
+		Logger.Info("Update member (%d, %d) to state: %b\n", ts, ip, state)
 		return nil
 	} else {
 		return errors.New("Invalid update")
@@ -134,7 +134,7 @@ func (ml *MemberList) Resize(capacity int) {
 
 func (ml *MemberList) PrintMemberList() {
 	fmt.Printf("------------------------------------------\n")
-	fmt.Printf("Size: %d, Capacity: %d\n", ml.size, len(ml.Members))
+	fmt.Printf("Size: %d", ml.size, len(ml.Members))
 	for idx := 0; idx < ml.size; idx += 1 {
 		m := ml.Members[idx]
 		fmt.Printf("idx: %d, TS: %d, IP: %d, ST: %b\n", idx,
