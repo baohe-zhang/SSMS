@@ -33,7 +33,7 @@ func (tc *TtlCache) Set(val *Update) {
 		return
 	}
 	tc.TtlList = append(tc.TtlList, val)
-	Logger.Debug("TTL cache add a new, TTL: %d\n", val.TTL)
+	Logger.Debug("TTL cache add a new update ID: %d, TTL: %d\n", val.UpdateID, val.TTL)
 }
 
 // Get one entry each time in TTL Cache
