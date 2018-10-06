@@ -134,7 +134,7 @@ func (ml *MemberList) Resize(capacity int) {
 
 func (ml *MemberList) PrintMemberList() {
 	fmt.Printf("------------------------------------------\n")
-	fmt.Printf("Size: %d", ml.size, len(ml.Members))
+	fmt.Printf("Size: %d\n", ml.size)
 	for idx := 0; idx < ml.size; idx += 1 {
 		m := ml.Members[idx]
 		fmt.Printf("idx: %d, TS: %d, IP: %d, ST: %b\n", idx,
