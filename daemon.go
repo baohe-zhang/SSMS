@@ -143,10 +143,10 @@ func udpDaemon() {
 			fmt.Printf("Leave")
 		default:
 			fmt.Println("Invalid Command, Please use correct one")
-			fmt.Println("1. join")
-			fmt.Println("2. show list")
-			fmt.Println("3. show id")
-			fmt.Println("4. leave")
+			fmt.Println("# join")
+			fmt.Println("# show list")
+			fmt.Println("# show id")
+			fmt.Println("# leave")
 		}
 	}
 
@@ -157,9 +157,9 @@ func udpDaemon() {
 func readCommand(input chan<- string) {
 	for {
 		var cmd string
-		_, err := fmt.Scanf("%s\n", &cmd)
+		_, err := fmt.Scanln(&cmd)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
 		}
 		input <- cmd
 	}
