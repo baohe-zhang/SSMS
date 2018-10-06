@@ -138,9 +138,9 @@ func udpDaemon() {
 		case "showlist":
 			CurrentList.PrintMemberList()
 		case "showid":
-			fmt.Printf("Member (%d, %d)", CurrentMember.TimeStamp, CurrentMember.IP)
+			fmt.Printf("Member (%d, %d)\n", CurrentMember.TimeStamp, CurrentMember.IP)
 		case "leave":
-			fmt.Printf("Leave")
+			fmt.Printf("Leave\n")
 		default:
 			fmt.Println("Invalid Command, Please use correct one")
 			fmt.Println("# join")
@@ -643,16 +643,6 @@ func ping(member *Member) {
 
 // Start the membership service and join in the group
 func startService() bool {
-
-	// Create a new log file or append to exit file
-	// file, err := os.OpenFile(LocalIP+".log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
-	// if err != nil {
-	// 	fmt.Println("[Error] Open or Create log file failed")
-	// 	return false
-	// }
-	// logPrefix := "[" + LocalIP + "]: "
-	// fmt = log.New(file, logPrefix, log.Ldate|log.Lmicroseconds|log.Lshortfile)
-
 	// Create self entry
 	LocalIP = getLocalIP().String()
 	Logger = NewSsmsLogger(LocalIP)
