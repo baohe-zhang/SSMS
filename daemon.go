@@ -38,8 +38,8 @@ const (
 )
 
 type Header struct {
-	Type uint8
-	Seq  uint16
+	Type     uint8
+	Seq      uint16
 	Reserved uint8
 }
 
@@ -61,6 +61,7 @@ var LocalIP string
 
 var DuplicateUpdateCaches map[uint64]uint8
 var TTLCaches *TtlCache
+var Logger *ssmsLogger
 
 // A trick to simply get local IP address
 func getLocalIP() net.IP {
@@ -91,7 +92,7 @@ func int2ip(binip uint32) net.IP {
 // Helper function to print the err in process
 func printError(err error) {
 	if err != nil {
-		fmt.Println("[ERROR]", err.Error())
+		Logger.Error(err.Error())
 	}
 }
 
@@ -145,7 +146,7 @@ func periodicPingIntroducer() {
 			var updateBuffer bytes.Buffer
 			binary.Write(&updateBuffer, binary.BigEndian, &update)
 			// Send piggyback Join Update
-			fmt.Printf("[INFO]: Introducer failed, try to ping introducer\n")
+			Logger.Info("Introducer failed, try to ping introducer\n")
 			pingWithPayload(&Member{0, ip2int(net.ParseIP(IntroducerIP)), 0}, updateBuffer.Bytes(), MemUpdateJoin)
 		}
 
@@ -166,7 +167,7 @@ func periodicPing() {
 				time.Sleep(PingSendingPeriod)
 				continue
 			}
-			fmt.Printf("[INFO]: Member (%d, %d) is selected by shuffling\n", member.TimeStamp, member.IP)
+			Logger.Info("Member (%d, %d) is selected by shuffling\n", member.TimeStamp, member.IP)
 			// Get update entry from TTL Cache
 			update, flag, err := getUpdate()
 			// if no update there, do pure ping
@@ -208,19 +209,19 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			reserved := uint8(0x00)
 			// Check whether this ping's source IP is within the memberlist
 			// IF not, set reserved 0xff, ask for sender's join update
-			if (!CurrentList.ContainsIP(ip2int(addr.IP))) {
+			if !CurrentList.ContainsIP(ip2int(addr.IP)) {
 				reserved = 0xff
-				fmt.Printf("[INFO]: Receive ping from unknown member, set reserved field 0xff")
+				Logger.Info("Receive ping from unknown member, set reserved field 0xff")
 			}
 
 			// Check whether this ping carries Init Request
 			if header.Type&MemInitRequest != 0 {
 				// Handle Init Request
-				fmt.Printf("[INFO]: Receive Init Request from %s: with seq %d\n", addr.IP.String(), header.Seq)
+				Logger.Info("Receive Init Request from %s: with seq %d\n", addr.IP.String(), header.Seq)
 				initReply(addr.IP.String(), header.Seq, payload)
 
 			} else if header.Type&MemUpdateSuspect != 0 {
-				fmt.Printf("[INFO]: Handle suspect update sent from %s\n", addr.IP.String())
+				Logger.Info("Handle suspect update sent from %s\n", addr.IP.String())
 				handleSuspect(payload)
 				// Get update entry from TTL Cache
 				update, flag, err := getUpdate()
@@ -233,7 +234,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				}
 
 			} else if header.Type&MemUpdateResume != 0 {
-				fmt.Printf("[INFO]: Handle resume update sent from %s\n", addr.IP.String())
+				Logger.Info("Handle resume update sent from %s\n", addr.IP.String())
 				handleResume(payload)
 				// Get update entry from TTL Cache
 				update, flag, err := getUpdate()
@@ -246,7 +247,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				}
 
 			} else if header.Type&MemUpdateLeave != 0 {
-				fmt.Printf("[INFO]: Handle leave update sent from %s\n", addr.IP.String())
+				Logger.Info("Handle leave update sent from %s\n", addr.IP.String())
 				handleLeave(payload)
 				// Get update entry from TTL Cache
 				update, flag, err := getUpdate()
@@ -259,7 +260,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				}
 
 			} else if header.Type&MemUpdateJoin != 0 {
-				fmt.Printf("[INFO]: Handle join update sent from %s\n", addr.IP.String())
+				Logger.Info("Handle join update sent from %s\n", addr.IP.String())
 				handleJoin(payload)
 				// Get update entry from TTL Cache
 				update, flag, err := getUpdate()
@@ -285,18 +286,18 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			timer, ok := PingAckTimeout[header.Seq-1]
 			if ok {
 				timer.Stop()
-				fmt.Printf("[INFO]: Receive ACK from [%s] with seq %d\n", addr.IP.String(), header.Seq)
+				Logger.Info("Receive ACK from [%s] with seq %d\n", addr.IP.String(), header.Seq)
 				delete(PingAckTimeout, header.Seq-1)
 			}
 
 			// Check header's reserved field
-			// If reserved field is 0xff, means this handler is missing in someone else's memberlist, 
+			// If reserved field is 0xff, means this handler is missing in someone else's memberlist,
 			// Hence disseminate join update
 			if header.Reserved == 0xff {
 				uid := TTLCaches.RandGen.Uint64()
 				update := Update{uid, 3, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 				TTLCaches.Set(&update)
-				fmt.Printf("[INFO]: Receive header with reserved 0xff, disseminate join update")
+				Logger.Info("Receive header with reserved 0xff, disseminate join update")
 			}
 
 			// Read payload
@@ -306,28 +307,28 @@ func udpDaemonHandle(connect *net.UDPConn) {
 				// Ack carries Init Reply, stop init timer
 				stop := init_timer.Stop()
 				if stop {
-					fmt.Printf("[INFO]: Receive Init Reply from [%s] with %d\n", addr.IP.String(), header.Seq)
+					Logger.Info("Receive Init Reply from [%s] with %d\n", addr.IP.String(), header.Seq)
 				}
 				handleInitReply(payload)
 
 			} else if header.Type&MemUpdateSuspect != 0 {
-				fmt.Printf("[INFO]: Handle suspect update sent from %s\n", addr.IP.String())
+				Logger.Info("Handle suspect update sent from %s\n", addr.IP.String())
 				handleSuspect(payload)
 
 			} else if header.Type&MemUpdateResume != 0 {
-				fmt.Printf("[INFO]: Handle resume update sent from %s\n", addr.IP.String())
+				Logger.Info("Handle resume update sent from %s\n", addr.IP.String())
 				handleResume(payload)
 
 			} else if header.Type&MemUpdateLeave != 0 {
-				fmt.Printf("[INFO]: Handle leave update sent from %s\n", addr.IP.String())
+				Logger.Info("Handle leave update sent from %s\n", addr.IP.String())
 				handleLeave(payload)
 
 			} else if header.Type&MemUpdateJoin != 0 {
-				fmt.Printf("[INFO]: Handle join update sent from %s\n", addr.IP.String())
+				Logger.Info("Handle join update sent from %s\n", addr.IP.String())
 				handleJoin(payload)
 
 			} else {
-				fmt.Printf("[INFO]: Receive pure ack sent from %s\n", addr.IP.String())
+				Logger.Info("Receive pure ack sent from %s\n", addr.IP.String())
 			}
 		}
 	}
@@ -338,18 +339,18 @@ func udpDaemonHandle(connect *net.UDPConn) {
 func isUpdateDuplicate(id uint64) bool {
 	_, ok := DuplicateUpdateCaches[id]
 	if ok {
-		fmt.Printf("[INFO]: Receive duplicated update %d\n", id)
+		Logger.Info("Receive duplicated update %d\n", id)
 		return true
 	} else {
 		DuplicateUpdateCaches[id] = 1 // add to cache
-		fmt.Printf("[INFO]: Add update %d to duplicated cache table \n", id)
+		Logger.Info("Add update %d to duplicated cache table \n", id)
 		recent_update_timer := time.NewTimer(UpdateDeletePeriod) // set a delete timer
 		go func() {
 			<-recent_update_timer.C
 			_, ok := DuplicateUpdateCaches[id]
 			if ok {
 				delete(DuplicateUpdateCaches, id) // delete from cache
-				fmt.Printf("[INFO]: Delete update %d from duplicated cache table \n", id)
+				Logger.Info("Delete update %d from duplicated cache table \n", id)
 			}
 		}()
 		return false
@@ -392,7 +393,7 @@ func handleSuspect(payload []byte) {
 		FailureTimeout[[2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)}] = failure_timer
 		go func() {
 			<-failure_timer.C
-			fmt.Printf("[Failure Detected](%s, %d) suspect timeout\n", int2ip(update.MemberIP).String(), update.MemberTimeStamp)
+			Logger.Info("[Failure Detected](%s, %d) suspect timeout\n", int2ip(update.MemberIP).String(), update.MemberTimeStamp)
 			err := CurrentList.Delete(update.MemberTimeStamp, update.MemberIP)
 			printError(err)
 			delete(FailureTimeout, [2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)})
@@ -459,12 +460,12 @@ func handleJoin(payload []byte) {
 			reply_update := Update{uid, 3, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 			TTLCaches.Set(&reply_update)
 			/*
-			// Construct a buffer to carry binary update struct
-			var updateBuffer bytes.Buffer
-			binary.Write(&updateBuffer, binary.BigEndian, &reply_update)
-			// Send piggyback Join Update
-			fmt.Printf("[INFO]: Introducer reply its info to the Join sender\n")
-			pingWithPayload(&Member{update.MemberTimeStamp, update.MemberIP, update.MemberState}, updateBuffer.Bytes(), MemUpdateJoin)
+				// Construct a buffer to carry binary update struct
+				var updateBuffer bytes.Buffer
+				binary.Write(&updateBuffer, binary.BigEndian, &reply_update)
+				// Send piggyback Join Update
+				fmt.Printf("[INFO]: Introducer reply its info to the Join sender\n")
+				pingWithPayload(&Member{update.MemberTimeStamp, update.MemberIP, update.MemberState}, updateBuffer.Bytes(), MemUpdateJoin)
 			*/
 		}
 	}
@@ -533,7 +534,7 @@ func initRequest(member *Member) {
 	init_timer = time.NewTimer(InitTimeoutPeriod)
 	go func() {
 		<-init_timer.C
-		fmt.Printf("[INFO]: Init %s timeout, process exit\n", IntroducerIP)
+		Logger.Info("Init %s timeout, process exit\n", IntroducerIP)
 		os.Exit(1)
 	}()
 }
@@ -572,13 +573,13 @@ func pingWithPayload(member *Member, payload []byte, flag uint8) {
 	} else {
 		udpSend(addr, binBuffer.Bytes())
 	}
-	fmt.Printf("[INFO]: Ping (%s, %d)\n", addr, seq)
+	Logger.Info("Ping (%s, %d)\n", addr, seq)
 
 	timer := time.NewTimer(PingTimeoutPeriod)
 	PingAckTimeout[uint16(seq)] = timer
 	go func() {
 		<-timer.C
-		fmt.Printf("[INFO]: Ping (%s, %d) timeout\n", addr, seq)
+		Logger.Info("Ping (%s, %d) timeout\n", addr, seq)
 		err := CurrentList.Update(member.TimeStamp, member.IP, StateSuspect)
 		if err == nil {
 			addUpdate2Cache(member, MemUpdateSuspect)
@@ -589,7 +590,7 @@ func pingWithPayload(member *Member, payload []byte, flag uint8) {
 		FailureTimeout[[2]uint64{member.TimeStamp, uint64(member.IP)}] = failure_timer
 		go func() {
 			<-failure_timer.C
-			fmt.Printf("[INFO]: (%s, %d) Failed\n", int2ip(member.IP).String(), member.TimeStamp)
+			Logger.Info("(%s, %d) Failed\n", int2ip(member.IP).String(), member.TimeStamp)
 			err := CurrentList.Delete(member.TimeStamp, member.IP)
 			printError(err)
 			delete(FailureTimeout, [2]uint64{member.TimeStamp, uint64(member.IP)})
@@ -627,6 +628,7 @@ func startService() bool {
 	FailureTimeout = make(map[[2]uint64]*time.Timer)
 	DuplicateUpdateCaches = make(map[uint64]uint8)
 	TTLCaches = NewTtlCache()
+	Logger = NewSsmsLogger(LocalIP)
 
 	if LocalIP == IntroducerIP {
 		CurrentMember.State |= (StateIntro | StateMonit)
@@ -646,8 +648,6 @@ func main() {
 	if startService() == true {
 		fmt.Printf("[INFO]: Start service\n")
 	}
-
 	// Start daemon
 	udpDaemon()
-
 }
