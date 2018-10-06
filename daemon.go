@@ -127,7 +127,7 @@ func udpDaemon() {
 	for {
 		s := <-userCmd
 		switch s {
-		case "join", "JOIN", "Join":
+		case "join":
 			if LocalIP == IntroducerIP {
 				CurrentMember.State |= (StateIntro | StateMonit)
 				CurrentList.Insert(CurrentMember)
@@ -135,11 +135,11 @@ func udpDaemon() {
 				// New member, send Init Request to the introducer
 				initRequest(CurrentMember)
 			}
-		case "show list", "show l":
+		case "show list":
 			CurrentList.PrintMemberList()
 		case "show id":
 			fmt.Printf("Member (%d, %d)", CurrentMember.TimeStamp, CurrentMember.IP)
-		case "leave", "Leave", "LEAVE":
+		case "leave":
 			fmt.Printf("Leave")
 		default:
 			fmt.Println("Invalid Command, Please use correct one")
