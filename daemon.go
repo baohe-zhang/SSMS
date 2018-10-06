@@ -117,13 +117,31 @@ func udpDaemon() {
 	// Use waitgroup
 	var wg sync.WaitGroup
 	wg.Add(1)
+	userCmd := make(chan string)
 
+	go readCommand(userCmd)
 	go udpDaemonHandle(listen)
 	go periodicPing()
 	go periodicPingIntroducer()
 	go periodicPrintMemberList()
+	for {
+		s := <-userCmd
+		fmt.Println(s)
+	}
 
 	wg.Wait()
+}
+
+// Concurrently read user input by chanel
+func readCommand(input chan<- string) {
+	for {
+		var cmd string
+		_, err := fmt.Scanf("%s\n", &cmd)
+		if err != nil {
+			panic(err)
+		}
+		input <- cmd
+	}
 }
 
 func periodicPrintMemberList() {
