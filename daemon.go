@@ -135,17 +135,17 @@ func udpDaemon() {
 				// New member, send Init Request to the introducer
 				initRequest(CurrentMember)
 			}
-		case "show list":
+		case "showlist":
 			CurrentList.PrintMemberList()
-		case "show id":
+		case "showid":
 			fmt.Printf("Member (%d, %d)", CurrentMember.TimeStamp, CurrentMember.IP)
 		case "leave":
 			fmt.Printf("Leave")
 		default:
 			fmt.Println("Invalid Command, Please use correct one")
 			fmt.Println("# join")
-			fmt.Println("# show list")
-			fmt.Println("# show id")
+			fmt.Println("# showlist")
+			fmt.Println("# showid")
 			fmt.Println("# leave")
 		}
 	}
