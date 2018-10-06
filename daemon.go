@@ -108,13 +108,14 @@ func udpDaemon() {
 	serverAddr := Port
 	udpAddr, err := net.ResolveUDPAddr("udp4", serverAddr)
 	printError(err)
-	// Listen the request from client
+	// Listen the request
 	listen, err := net.ListenUDP("udp", udpAddr)
 	printError(err)
 
 	// Use waitgroup
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	userCmd := make(chan string)
 
 	go readCommand(userCmd)
@@ -182,7 +183,7 @@ func periodicPingIntroducer() {
 		// Periodiclly ping introducer when introducer is failed.
 		// Piggyback it's self member info
 		// Use for introducer revive
-		if (!CurrentList.ContainsIP(ip2int(net.ParseIP(IntroducerIP)))) && (LocalIP != IntroducerIP) {
+		if (CurrentList.Size() > 0) && (!CurrentList.ContainsIP(ip2int(net.ParseIP(IntroducerIP)))) && (LocalIP != IntroducerIP) {
 			// Construct a join update
 			uid := TTLCaches.RandGen.Uint64()
 			update := Update{uid, 0, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
