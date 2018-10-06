@@ -162,7 +162,7 @@ func periodicPing() {
 		if CurrentList.Size() > 0 {
 			member := CurrentList.Shuffle()
 			// Do not pick itself as the ping target
-			if member.TimeStamp == CurrentMember.TimeStamp && member.IP == CurrentMember.IP {
+			if member.TimeStamp == CurrentMember.TimeStamp {
 				time.Sleep(PingSendingPeriod)
 				continue
 			}
@@ -208,7 +208,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			reserved := uint8(0x00)
 			// Check whether this ping's source IP is within the memberlist
 			// IF not, set reserved 0xff, ask for sender's join update
-			if !CurrentList.ContainsIP(ip2int(addr.IP)) {
+			if (!CurrentList.ContainsIP(ip2int(addr.IP))) {
 				reserved = 0xff
 				fmt.Printf("[INFO]: Receive ping from unknown member, set reserved field 0xff")
 			}
@@ -381,7 +381,6 @@ func handleSuspect(payload []byte) {
 		// suspect self, tell them I am alvie
 		if CurrentMember.TimeStamp == update.MemberTimeStamp && CurrentMember.IP == update.MemberIP {
 			addUpdate2Cache(CurrentMember, MemUpdateResume)
-			fmt.Printf("[DEBUG]: Resume")
 			return
 		}
 
@@ -457,13 +456,16 @@ func handleJoin(payload []byte) {
 		// If the handler is the introducer, then introducer send its info to the origin join sender.
 		if LocalIP == IntroducerIP {
 			uid := TTLCaches.RandGen.Uint64()
-			reply_update := Update{uid, 0, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+			reply_update := Update{uid, 3, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+			TTLCaches.Set(&reply_update)
+			/*
 			// Construct a buffer to carry binary update struct
 			var updateBuffer bytes.Buffer
 			binary.Write(&updateBuffer, binary.BigEndian, &reply_update)
 			// Send piggyback Join Update
 			fmt.Printf("[INFO]: Introducer reply its info to the Join sender\n")
 			pingWithPayload(&Member{update.MemberTimeStamp, update.MemberIP, update.MemberState}, updateBuffer.Bytes(), MemUpdateJoin)
+			*/
 		}
 	}
 }
