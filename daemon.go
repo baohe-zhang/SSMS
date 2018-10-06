@@ -123,10 +123,31 @@ func udpDaemon() {
 	go udpDaemonHandle(listen)
 	go periodicPing()
 	go periodicPingIntroducer()
-	go periodicPrintMemberList()
+	//go periodicPrintMemberList()
 	for {
 		s := <-userCmd
-		fmt.Println(s)
+		switch s {
+		case "join", "JOIN", "Join":
+			if LocalIP == IntroducerIP {
+				CurrentMember.State |= (StateIntro | StateMonit)
+				CurrentList.Insert(CurrentMember)
+			} else {
+				// New member, send Init Request to the introducer
+				initRequest(CurrentMember)
+			}
+		case "show list", "show l":
+			CurrentList.PrintMemberList()
+		case "show id":
+			fmt.Printf("Member (%d, %d)", CurrentMember.TimeStamp, CurrentMember.IP)
+		case "leave", "Leave", "LEAVE":
+			fmt.Printf("Leave")
+		default:
+			fmt.Println("Invalid Command, Please use correct one")
+			fmt.Println("1. join")
+			fmt.Println("2. show list")
+			fmt.Println("3. show id")
+			fmt.Println("4. leave")
+		}
 	}
 
 	wg.Wait()
@@ -647,14 +668,6 @@ func startService() bool {
 	FailureTimeout = make(map[[2]uint64]*time.Timer)
 	DuplicateUpdateCaches = make(map[uint64]uint8)
 	TTLCaches = NewTtlCache()
-
-	if LocalIP == IntroducerIP {
-		CurrentMember.State |= (StateIntro | StateMonit)
-		CurrentList.Insert(CurrentMember)
-	} else {
-		// New member, send Init Request to the introducer
-		initRequest(CurrentMember)
-	}
 
 	return true
 }
