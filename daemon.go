@@ -25,8 +25,8 @@ const (
 	StateSuspect     = 0x01 << 1
 	StateMonit       = 0x01 << 2
 	StateIntro       = 0x01 << 3
-	//IntroducerIP     = "10.0.0.180"
-	IntroducerIP       = "10.193.185.82"
+	IntroducerIP     = "10.0.0.180"
+	//IntroducerIP       = "10.193.185.82"
 	Port               = ":6666"
 	InitTimeoutPeriod  = 2000 * time.Millisecond
 	PingTimeoutPeriod  = 1000 * time.Millisecond
@@ -134,12 +134,16 @@ func udpDaemon() {
 				// New member, send Init Request to the introducer
 				initRequest(CurrentMember)
 			}
+
 		case "showlist":
 			CurrentList.PrintMemberList()
+
 		case "showid":
 			fmt.Printf("Member (%d, %d)\n", CurrentMember.TimeStamp, CurrentMember.IP)
+
 		case "leave":
-			fmt.Printf("Leave\n")
+			initiateLeave()
+			
 		default:
 			fmt.Println("Invalid Command, Please use correct one")
 			fmt.Println("# join")
@@ -162,6 +166,15 @@ func readCommand(input chan<- string) {
 		}
 		input <- cmd
 	}
+}
+
+func initiateLeave() {
+	uid := TTLCaches.RandGen.Uint64()
+	update := Update{uid, 3, MemUpdateLeave, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+	TTLCaches.Set(&update)
+	Logger.Info("Member (%d, %d) leaves", CurrentMember.TimeStamp, CurrentMember.IP)
+	time.Sleep(2 * time.Second)
+	initilize()
 }
 
 
@@ -635,7 +648,7 @@ func ping(member *Member) {
 }
 
 // Start the membership service and join in the group
-func startService() bool {
+func initilize() bool {
 	// Create self entry
 	LocalIP = getLocalIP().String()
 	Logger = NewSsmsLogger(LocalIP)
@@ -659,7 +672,7 @@ func startService() bool {
 func main() {
 
 	// Init
-	if startService() == true {
+	if initilize() == true {
 		fmt.Printf("[INFO]: Start service\n")
 	}
 	// Start daemon
