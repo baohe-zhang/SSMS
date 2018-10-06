@@ -34,7 +34,6 @@ const (
 	SuspectPeriod      = 1000 * time.Millisecond
 	PingIntroPeriod    = 10000 * time.Millisecond
 	UpdateDeletePeriod = 15000 * time.Millisecond
-	PrintMemListPeriod = 5000 * time.Millisecond
 )
 
 type Header struct {
@@ -123,7 +122,7 @@ func udpDaemon() {
 	go udpDaemonHandle(listen)
 	go periodicPing()
 	go periodicPingIntroducer()
-	//go periodicPrintMemberList()
+
 	for {
 		s := <-userCmd
 		switch s {
@@ -165,19 +164,13 @@ func readCommand(input chan<- string) {
 	}
 }
 
-func periodicPrintMemberList() {
-	for {
-		CurrentList.PrintMemberList()
-		time.Sleep(PrintMemListPeriod)
-	}
-}
 
 func periodicPingIntroducer() {
 	for {
 		// Periodiclly ping introducer when introducer is failed.
 		// Piggyback it's self member info
 		// Use for introducer revive
-		if !CurrentList.ContainsIP(ip2int(net.ParseIP(IntroducerIP))) {
+		if (!CurrentList.ContainsIP(ip2int(net.ParseIP(IntroducerIP)))) && (LocalIP != IntroducerIP) {
 			// Construct a join update
 			uid := TTLCaches.RandGen.Uint64()
 			update := Update{uid, 0, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
@@ -202,7 +195,7 @@ func periodicPing() {
 		if CurrentList.Size() > 0 {
 			member := CurrentList.Shuffle()
 			// Do not pick itself as the ping target
-			if member.TimeStamp == CurrentMember.TimeStamp {
+			if (member.TimeStamp == CurrentMember.TimeStamp) && (member.IP == CurrentMember.IP) {
 				time.Sleep(PingSendingPeriod)
 				continue
 			}
