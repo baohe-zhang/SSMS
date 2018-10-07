@@ -34,7 +34,7 @@ const (
 	PingIntroPeriod    = 5000 * time.Millisecond
 	UpdateDeletePeriod = 15000 * time.Millisecond
 	LeaveDelayPeriod   = 2000 * time.Millisecond
-	TTL_              = 3
+	TTL_               = 3
 )
 
 type Header struct {
