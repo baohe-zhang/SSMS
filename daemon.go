@@ -124,7 +124,7 @@ func udpDaemon() {
 	global_wg.Add(1)
 	go udpDaemonHandle(listen)
 	go periodicPing()
-	// go periodicPingIntroducer()
+	go periodicPingIntroducer()
 
 	for {
 		s := <-userCmd
@@ -189,6 +189,7 @@ func initiateLeave() {
 
 func periodicPingIntroducer() {
 	for {
+		global_wg.Wait() // Once leave, Do not execute this function
 		// Periodiclly ping introducer when introducer is failed.
 		// Piggyback it's self member info
 		// Use for introducer revive
@@ -239,7 +240,7 @@ func periodicPing() {
 
 func udpDaemonHandle(connect *net.UDPConn) {
 	for {
-		global_wg.Wait()
+		global_wg.Wait()  // Once leave, stop receiving messages
 		// Making a buffer to accept the grep command content from client
 		buffer := make([]byte, 1024)
 		n, addr, err := connect.ReadFromUDP(buffer)
@@ -511,6 +512,14 @@ func handleJoin(payload []byte) {
 		CurrentList.Insert(&Member{update.MemberTimeStamp, update.MemberIP,
 			update.MemberState})
 		TTLCaches.Set(&update)
+		// Introducer diseeminate its info when receives join
+		if LocalIP == IntroducerIP {
+			uid := TTLCaches.RandGen.Uint64()
+			reply_update := Update{uid, 2, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+			TTLCaches.Set(&reply_update)
+			isUpdateDuplicate(uid)
+			Logger.Info("Introducer set its info update to the cache\n")
+		}
 	}
 }
 
