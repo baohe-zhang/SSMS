@@ -69,6 +69,7 @@ func (ml *MemberList) Insert(m *Member) error {
 	// Prolong the shuffle list
 	ml.shuffleList = append(ml.shuffleList, len(ml.shuffleList))
 	Logger.Info("Prolong the length of shuffleList to: %d\n", len(ml.shuffleList))
+	ml.PrintMemberList()
 	return nil
 }
 
@@ -94,6 +95,7 @@ func (ml *MemberList) Delete(ts uint64, ip uint32) error {
 		ml.Members[idx] = ml.Members[ml.size-1]
 		ml.size -= 1
 		Logger.Info("Delete member (%d, %d)\n", ts, ip)
+		ml.PrintMemberList()
 		return nil
 	} else {
 		return errors.New("Invalid delete")
@@ -106,6 +108,7 @@ func (ml *MemberList) Update(ts uint64, ip uint32, state uint8) error {
 	if idx > -1 {
 		ml.Members[idx].State = state
 		Logger.Info("Update member (%d, %d) to state: %b\n", ts, ip, state)
+		ml.PrintMemberList()
 		return nil
 	} else {
 		return errors.New("Invalid update")

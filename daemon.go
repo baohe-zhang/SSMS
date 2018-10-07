@@ -552,8 +552,6 @@ func initReply(addr string, seq uint16, payload []byte) {
 		binBuffer.Write(memBuffer.Bytes())
 		memBuffer.Reset() // Clear buffer
 	}
-	// Print memberlist when new member joins
-	CurrentList.PrintMemberList()
 
 	// Send pigggback Init Reply
 	ackWithPayload(addr, seq, binBuffer.Bytes(), MemInitReply, 0x00)
