@@ -451,7 +451,7 @@ func handleSuspect(payload []byte) {
 		FailureTimeout[[2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)}] = failure_timer
 		go func() {
 			<-failure_timer.C
-			Logger.Info("[Failure Detected](%s, %d) suspect timeout\n", int2ip(update.MemberIP).String(), update.MemberTimeStamp)
+			Logger.Info("[Failure Detected](%s, %d) Failed, detected by others\n", int2ip(update.MemberIP).String(), update.MemberTimeStamp)
 			err := CurrentList.Delete(update.MemberTimeStamp, update.MemberIP)
 			printError(err)
 			delete(FailureTimeout, [2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)})
@@ -642,7 +642,7 @@ func pingWithPayload(member *Member, payload []byte, flag uint8) {
 		FailureTimeout[[2]uint64{member.TimeStamp, uint64(member.IP)}] = failure_timer
 		go func() {
 			<-failure_timer.C
-			Logger.Info("(%s, %d) Failed\n", int2ip(member.IP).String(), member.TimeStamp)
+			Logger.Info("[Failure Detected](%s, %d) Failed, detected by self\n", int2ip(member.IP).String(), member.TimeStamp)
 			err := CurrentList.Delete(member.TimeStamp, member.IP)
 			printError(err)
 			delete(FailureTimeout, [2]uint64{member.TimeStamp, uint64(member.IP)})
