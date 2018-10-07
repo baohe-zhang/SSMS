@@ -34,7 +34,7 @@ const (
 	PingIntroPeriod    = 5000 * time.Millisecond
 	UpdateDeletePeriod = 15000 * time.Millisecond
 	LeaveDelayPeriod   = 2000 * time.Millisecond
-	TTL_C              = 3
+	TTL_               = 3
 )
 
 type Header struct {
@@ -189,7 +189,7 @@ func readCommand(input chan<- string) {
 
 func initiateLeave() {
 	uid := TTLCaches.RandGen.Uint64()
-	update := Update{uid, TTL_C, MemUpdateLeave, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+	update := Update{uid, TTL_, MemUpdateLeave, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 	// Clear current ttl cache and add delete update to the cache
 	TTLCaches = NewTtlCache()
 	TTLCaches.Set(&update)
@@ -208,7 +208,7 @@ func periodicPingIntroducer() {
 		if (CurrentList.Size() > 0) && (!CurrentList.ContainsIP(ip2int(net.ParseIP(IntroducerIP)))) && (LocalIP != IntroducerIP) {
 			// Construct a join update
 			uid := TTLCaches.RandGen.Uint64()
-			update := Update{uid, 0, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+			update := Update{uid, TTL_, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 			isUpdateDuplicate(uid)
 			// Construct a buffer to carry binary update struct
 			var updateBuffer bytes.Buffer
@@ -280,7 +280,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			// IF not, set reserved 0xff, ask for sender's join update
 			// init request will not participate this procedure
 			// Because every new join member is unknown to the introducer
-			if (!CurrentList.ContainsIP(ip2int(addr.IP))) && (LocalIP != IntroducerIP) {
+			if (!CurrentList.ContainsIP(ip2int(addr.IP))) && (header.Type&MemInitRequest == 0) {
 				reserved = 0xff
 				Logger.Info("Receive ping from unknown member, set reserved field 0xff")
 			}
@@ -366,7 +366,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			// Hence disseminate join update
 			if header.Reserved == 0xff {
 				uid := TTLCaches.RandGen.Uint64()
-				update := Update{uid, TTL_C, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+				update := Update{uid, TTL_, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 				TTLCaches.Set(&update)
 				isUpdateDuplicate(uid)
 				Logger.Info("Receive header with reserved 0xff, disseminate join update")
@@ -535,7 +535,7 @@ func handleJoin(payload []byte) {
 		// Introducer diseeminate its info when receives join
 		if LocalIP == IntroducerIP {
 			uid := TTLCaches.RandGen.Uint64()
-			reply_update := Update{uid, TTL_C, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+			reply_update := Update{uid, TTL_, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 			TTLCaches.Set(&reply_update)
 			isUpdateDuplicate(uid)
 			Logger.Info("Introducer set its info update to the cache\n")
@@ -546,7 +546,7 @@ func handleJoin(payload []byte) {
 // Generate a new update and set it in TTL Cache
 func addUpdate2Cache(member *Member, updateType uint8) {
 	uid := TTLCaches.RandGen.Uint64()
-	update := Update{uid, TTL_C, updateType, member.TimeStamp, member.IP, member.State}
+	update := Update{uid, TTL_, updateType, member.TimeStamp, member.IP, member.State}
 	TTLCaches.Set(&update)
 	// This daemon is the update producer, add this update to the update duplicate cache
 	isUpdateDuplicate(uid)
