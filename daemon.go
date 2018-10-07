@@ -31,7 +31,7 @@ const (
 	PingTimeoutPeriod  = 1000 * time.Millisecond
 	PingSendingPeriod  = 250 * time.Millisecond
 	SuspectPeriod      = 1000 * time.Millisecond
-	PingIntroPeriod    = 10000 * time.Millisecond
+	PingIntroPeriod    = 5000 * time.Millisecond
 	UpdateDeletePeriod = 15000 * time.Millisecond
 	LeaveDelayPeriod   = 2000 * time.Millisecond
 )
