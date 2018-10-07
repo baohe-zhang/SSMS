@@ -144,8 +144,8 @@ func (ml *MemberList) PrintMemberList() {
 	fmt.Printf("Size: %d\n", ml.size)
 	for idx := 0; idx < ml.size; idx += 1 {
 		m := ml.Members[idx]
-		fmt.Printf("idx: %d, TS: %d, IP: %d, ST: %b\n", idx,
-			m.TimeStamp, m.IP, m.State)
+		fmt.Printf("idx: %d, TS: %d, IP: %s, ST: %b\n", idx,
+			m.TimeStamp, int2ip(m.IP).String(), m.State)
 	}
 	fmt.Printf("------------------------------------------\n")
 }
