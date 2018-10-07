@@ -25,7 +25,7 @@ const (
 	StateSuspect       = 0x01 << 1
 	StateMonit         = 0x01 << 2
 	StateIntro         = 0x01 << 3
-	IntroducerIP       = "10.193.185.82"
+	IntroducerIP       = "172.22.156.95"
 	Port               = ":6666"
 	InitTimeoutPeriod  = 2000 * time.Millisecond
 	PingTimeoutPeriod  = 1000 * time.Millisecond
