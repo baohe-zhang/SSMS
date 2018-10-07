@@ -63,6 +63,8 @@ var TTLCaches *TtlCache
 var Logger *ssmsLogger
 
 var global_wg sync.WaitGroup
+// mutex used for duplicate update caches write
+var mutex sync.Mutex
 
 // A trick to simply get local IP address
 func getLocalIP() net.IP {
@@ -406,8 +408,6 @@ func udpDaemonHandle(connect *net.UDPConn) {
 // Check whether the update is duplicated
 // If duplicated, return false, else, return true and start a timer
 func isUpdateDuplicate(id uint64) bool {
-	var mutex sync.Mutex
-
 	mutex.Lock()
 	_, ok := DuplicateUpdateCaches[id]
 	mutex.Unlock()
