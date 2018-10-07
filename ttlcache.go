@@ -28,8 +28,7 @@ func NewTtlCache() *TtlCache {
 
 // Set the update packet in TTL Cache
 func (tc *TtlCache) Set(val *Update) {
-	val.TTL -= 1
-	if val.TTL < 0 {
+	if val.TTL < 1 {
 		Logger.Debug("TTL cache cannot set for ttl=0 %d\n", val.UpdateID)
 		return
 	}
