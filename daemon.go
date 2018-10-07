@@ -61,6 +61,8 @@ var DuplicateUpdateCaches map[uint64]uint8
 var TTLCaches *TtlCache
 var Logger *ssmsLogger
 
+var global_wg sync.WaitGroup
+
 // A trick to simply get local IP address
 func getLocalIP() net.IP {
 	dial, err := net.Dial("udp", "8.8.8.8:80")
@@ -118,6 +120,8 @@ func udpDaemon() {
 	userCmd := make(chan string)
 
 	go readCommand(userCmd)
+
+	global_wg.Add(1)
 	go udpDaemonHandle(listen)
 	go periodicPing()
 	// go periodicPingIntroducer()
@@ -126,6 +130,8 @@ func udpDaemon() {
 		s := <-userCmd
 		switch s {
 		case "join":
+			global_wg.Done()
+
 			if LocalIP == IntroducerIP {
 				CurrentMember.State |= (StateIntro | StateMonit)
 				CurrentList.Insert(CurrentMember)
@@ -141,6 +147,7 @@ func udpDaemon() {
 			fmt.Printf("Member (%d, %d)\n", CurrentMember.TimeStamp, CurrentMember.IP)
 
 		case "leave":
+			global_wg.Add(1)
 			initiateLeave()
 			
 		default:
@@ -232,6 +239,7 @@ func periodicPing() {
 
 func udpDaemonHandle(connect *net.UDPConn) {
 	for {
+		global_wg.Wait()
 		// Making a buffer to accept the grep command content from client
 		buffer := make([]byte, 1024)
 		n, addr, err := connect.ReadFromUDP(buffer)
