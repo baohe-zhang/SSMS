@@ -194,7 +194,7 @@ func initiateLeave() {
 	TTLCaches = NewTtlCache()
 	TTLCaches.Set(&update)
 	isUpdateDuplicate(uid)
-	Logger.Info("Member (%d, %d) leaves", CurrentMember.TimeStamp, CurrentMember.IP)
+	Logger.Info("Member (%d, %s) leaves", CurrentMember.TimeStamp, LocalIP)
 	time.Sleep(LeaveDelayPeriod)
 	initilize()
 }
