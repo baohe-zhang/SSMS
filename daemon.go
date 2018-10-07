@@ -33,6 +33,7 @@ const (
 	SuspectPeriod      = 1000 * time.Millisecond
 	PingIntroPeriod    = 10000 * time.Millisecond
 	UpdateDeletePeriod = 15000 * time.Millisecond
+	LeaveDelayPeriod   = 2000 * time.Millisecond
 )
 
 type Header struct {
@@ -130,6 +131,10 @@ func udpDaemon() {
 		s := <-userCmd
 		switch s {
 		case "join":
+			if CurrentList.Size() > 0 {
+				fmt.Println("Already in the group")
+				continue
+			}
 			global_wg.Done()
 
 			if LocalIP == IntroducerIP {
@@ -147,6 +152,10 @@ func udpDaemon() {
 			fmt.Printf("Member (%d, %d)\n", CurrentMember.TimeStamp, CurrentMember.IP)
 
 		case "leave":
+			if CurrentList.Size() < 1 {
+				fmt.Println("Haven't join the group")
+				continue
+			}
 			global_wg.Add(1)
 			initiateLeave()
 			
@@ -182,7 +191,7 @@ func initiateLeave() {
 	TTLCaches.Set(&update)
 	isUpdateDuplicate(uid)
 	Logger.Info("Member (%d, %d) leaves", CurrentMember.TimeStamp, CurrentMember.IP)
-	time.Sleep(2 * time.Second)
+	time.Sleep(LeaveDelayPeriod)
 	initilize()
 }
 
