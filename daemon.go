@@ -174,7 +174,7 @@ func initiateLeave() {
 	TTLCaches.Set(&update)
 	isUpdateDuplicate(uid)
 	Logger.Info("Member (%d, %d) leaves", CurrentMember.TimeStamp, CurrentMember.IP)
-	time.Sleep(2 * time.Second)
+	time.Sleep(4 * time.Second)
 	initilize()
 }
 
@@ -188,6 +188,7 @@ func periodicPingIntroducer() {
 			// Construct a join update
 			uid := TTLCaches.RandGen.Uint64()
 			update := Update{uid, 0, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+			isUpdateDuplicate(uid)
 			// Construct a buffer to carry binary update struct
 			var updateBuffer bytes.Buffer
 			binary.Write(&updateBuffer, binary.BigEndian, &update)
@@ -256,6 +257,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			// Check whether this ping's source IP is within the memberlist
 			// IF not, set reserved 0xff, ask for sender's join update
 			// Introducer will not participate this procedure
+			// Because every new join member is unknown to the introducer
 			if (!CurrentList.ContainsIP(ip2int(addr.IP))) && (LocalIP != IntroducerIP) {
 				reserved = 0xff
 				Logger.Info("Receive ping from unknown member, set reserved field 0xff")
@@ -432,10 +434,8 @@ func handleSuspect(payload []byte) {
 			addUpdate2Cache(CurrentMember, MemUpdateResume)
 			return
 		}
-
 		// Receive new update, handle it
-		CurrentList.Update(update.MemberTimeStamp, update.MemberIP,
-			update.MemberState)
+		CurrentList.Update(update.MemberTimeStamp, update.MemberIP, update.MemberState)
 		TTLCaches.Set(&update)
 		failure_timer := time.NewTimer(SuspectPeriod)
 		FailureTimeout[[2]uint64{update.MemberTimeStamp, uint64(update.MemberIP)}] = failure_timer
@@ -502,32 +502,16 @@ func handleJoin(payload []byte) {
 		CurrentList.Insert(&Member{update.MemberTimeStamp, update.MemberIP,
 			update.MemberState})
 		TTLCaches.Set(&update)
-		// If the handler is the introducer, then introducer send its info to the origin join sender.
-		if LocalIP == IntroducerIP {
-			uid := TTLCaches.RandGen.Uint64()
-			reply_update := Update{uid, 3, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
-			TTLCaches.Set(&reply_update)
-			isUpdateDuplicate(uid)
-			fmt.Printf("[INFO]: Introducer set its info update to the cache\n")
-			/*
-				// Construct a buffer to carry binary update struct
-				var updateBuffer bytes.Buffer
-				binary.Write(&updateBuffer, binary.BigEndian, &reply_update)
-				// Send piggyback Join Update
-				fmt.Printf("[INFO]: Introducer reply its info to the Join sender\n")
-				pingWithPayload(&Member{update.MemberTimeStamp, update.MemberIP, update.MemberState}, updateBuffer.Bytes(), MemUpdateJoin)
-			*/
-		}
 	}
 }
 
 // Generate a new update and set it in TTL Cache
 func addUpdate2Cache(member *Member, updateType uint8) {
-	key := TTLCaches.RandGen.Uint64()
-	update := Update{key, 3, updateType, member.TimeStamp, member.IP, member.State}
+	uid := TTLCaches.RandGen.Uint64()
+	update := Update{uid, 3, updateType, member.TimeStamp, member.IP, member.State}
 	TTLCaches.Set(&update)
 	// This daemon is the update producer, add this update to the update duplicate cache
-	isUpdateDuplicate(key)
+	isUpdateDuplicate(uid)
 }
 
 // Handle the full membership list(InitReply) received from introducer
