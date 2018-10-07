@@ -120,7 +120,7 @@ func udpDaemon() {
 	go readCommand(userCmd)
 	go udpDaemonHandle(listen)
 	go periodicPing()
-	go periodicPingIntroducer()
+	// go periodicPingIntroducer()
 
 	for {
 		s := <-userCmd
