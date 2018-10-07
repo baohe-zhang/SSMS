@@ -683,7 +683,7 @@ func initilize() bool {
 	CurrentMember = &Member{uint64(timestamp), ip2int(getLocalIP()), uint8(state)}
 
 	// Create member list
-	CurrentList = NewMemberList(10)
+	CurrentList = NewMemberList(20)
 
 	// Make necessary tables
 	PingAckTimeout = make(map[uint16]*time.Timer)
