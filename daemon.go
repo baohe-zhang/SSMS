@@ -534,7 +534,7 @@ func handleJoin(payload []byte) {
 		// Introducer diseeminate its info when receives join
 		if LocalIP == IntroducerIP {
 			uid := TTLCaches.RandGen.Uint64()
-			reply_update := Update{uid, 2, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+			reply_update := Update{uid, 3, MemUpdateJoin, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
 			TTLCaches.Set(&reply_update)
 			isUpdateDuplicate(uid)
 			Logger.Info("Introducer set its info update to the cache\n")
