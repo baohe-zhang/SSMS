@@ -99,7 +99,6 @@ func udpSend(addr string, packet []byte) {
 	conn, err := net.Dial("udp", addr)
 	printError(err)
 	defer conn.Close()
-
 	conn.Write(packet)
 }
 
@@ -171,10 +170,12 @@ func readCommand(input chan<- string) {
 func initiateLeave() {
 	uid := TTLCaches.RandGen.Uint64()
 	update := Update{uid, 3, MemUpdateLeave, CurrentMember.TimeStamp, CurrentMember.IP, CurrentMember.State}
+	// Clear current ttl cache and add delete update to the cache
+	TTLCaches = NewTtlCache()
 	TTLCaches.Set(&update)
 	isUpdateDuplicate(uid)
 	Logger.Info("Member (%d, %d) leaves", CurrentMember.TimeStamp, CurrentMember.IP)
-	time.Sleep(4 * time.Second)
+	time.Sleep(2 * time.Second)
 	initilize()
 }
 
