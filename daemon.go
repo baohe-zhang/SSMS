@@ -32,7 +32,7 @@ const (
 	PingSendingPeriod  = 250 * time.Millisecond
 	SuspectPeriod      = 1000 * time.Millisecond
 	PingIntroPeriod    = 5000 * time.Millisecond
-	UpdateDeletePeriod = 8000 * time.Millisecond
+	UpdateDeletePeriod = 15000 * time.Millisecond
 	LeaveDelayPeriod   = 2000 * time.Millisecond
 	TTL_Const		   = 4
 )
@@ -280,7 +280,7 @@ func udpDaemonHandle(connect *net.UDPConn) {
 			// IF not, set reserved 0xff, ask for sender's join update
 			// init request will not participate this procedure
 			// Because every new join member is unknown to the introducer
-			if (!CurrentList.ContainsIP(ip2int(addr.IP))) && (header.Type&MemInitRequest==0) {
+			if (!CurrentList.ContainsIP(ip2int(addr.IP))) && (LocalIP != IntroducerIP) {
 				reserved = 0xff
 				Logger.Info("Receive ping from unknown member, set reserved field 0xff")
 			}
@@ -529,7 +529,8 @@ func handleJoin(payload []byte) {
 	updateID := update.UpdateID
 	if !isUpdateDuplicate(updateID) {
 		// Receive new update, handle it
-		CurrentList.Insert(&Member{update.MemberTimeStamp, update.MemberIP, update.MemberState})
+		CurrentList.Insert(&Member{update.MemberTimeStamp, update.MemberIP,
+			update.MemberState})
 		TTLCaches.Set(&update)
 		// Introducer diseeminate its info when receives join
 		if LocalIP == IntroducerIP {
