@@ -406,11 +406,11 @@ func udpDaemonHandle(connect *net.UDPConn) {
 // Check whether the update is duplicated
 // If duplicated, return false, else, return true and start a timer
 func isUpdateDuplicate(id uint64) bool {
-	var mutex sync.RWMutex
+	var mutex sync.Mutex
 
-	mutex.RLock()
+	mutex.Lock()
 	_, ok := DuplicateUpdateCaches[id]
-	mutex.RUnlock()
+	mutex.Unlock()
 	if ok {
 		Logger.Info("Receive duplicated update %d\n", id)
 		return true
@@ -422,9 +422,9 @@ func isUpdateDuplicate(id uint64) bool {
 		recent_update_timer := time.NewTimer(UpdateDeletePeriod) // set a delete timer
 		go func() {
 			<-recent_update_timer.C
-			mutex.RLock()
+			mutex.Lock()
 			_, ok := DuplicateUpdateCaches[id]
-			mutex.RUnlock()
+			mutex.Unlock()
 			if ok {
 				mutex.Lock()
 				delete(DuplicateUpdateCaches, id) // delete from cache
