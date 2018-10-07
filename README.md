@@ -88,51 +88,32 @@ Now we can do our distributed grep to get logs of different level(INFO/DEBUG/ERR
 For example, we run dist-grep to query certain pattern "Failure" and then cut some other field in the terminal output.
 
 ```shell
-Colearos-MacBook-Pro:client colearolu$ ./client -E "Failure" |cut -d " " -f 3,4,5,6,7
+Colearos-MacBook-Pro:client colearolu$ ./client -E "Failure" 
 ...
-2018/10/06 22:47:49.860379 [Failure Detected](10.193.185.82, 1538884014485069000)
-2018/10/06 22:47:50.152054 [Failure Detected](10.193.185.82, 1538884014485069000)
-2018/10/06 22:47:54.181332 [Failure Detected](10.193.185.82, 0)
-2018/10/06 22:47:59.181612 [Failure Detected](10.193.185.82, 0)
-2018/10/06 22:48:04.181770 [Failure Detected](10.193.185.82, 0)
-2018/10/06 22:48:18.699443 [Failure Detected](172.22.156.97, 1538883952976854203)
-2018/10/06 22:49:03.269265 [Failure Detected](10.193.185.82, 1538884068246268000)
-2018/10/06 22:49:03.521327 [Failure Detected](10.193.185.82, 1538884068246268000)
-2018/10/06 22:49:10.031525 [Failure Detected](10.193.185.82, 1538884068246268000)
-2018/10/06 22:49:10.532594 [Failure Detected](10.193.185.82, 1538884068246268000)
-2018/10/06 22:49:12.034698 [Failure Detected](10.193.185.82, 1538884068246268000)
-2018/10/06 22:49:12.045510 [Failure Detected](10.193.185.82, 1538884068246268000)
-2018/10/06 22:49:14.538169 [Failure Detected](10.193.185.82, 1538884068246268000)
-2018/10/06 22:49:16.289109 [Failure Detected](10.193.185.82, 1538884142385196000)
-2018/10/06 22:52:36.219940 [Failure Detected](10.193.185.82, 1538884176730621000)
-2018/10/06 22:52:36.227138 [Failure Detected](10.193.185.82, 1538884176730621000)
-2018/10/06 22:52:36.228997 [Failure Detected](10.193.185.82, 1538884176730621000)
-2018/10/06 22:52:40.616035 [Failure Detected](10.193.185.82, 0)
-2018/10/06 22:52:45.616526 [Failure Detected](10.193.185.82, 0)
-2018/10/06 22:52:50.616944 [Failure Detected](10.193.185.82, 0)
-2018/10/06 22:53:57.505187 [Failure Detected](10.193.185.82, 1538884370872997000)
-2018/10/06 22:55:49.535837 [Failure Detected](172.22.158.96, 1538884255618504178)
-2018/10/06 22:57:12.381011 [Failure Detected](10.193.185.82, 1538884370872997000)
-2018/10/06 22:57:12.748437 [Failure Detected](172.22.156.98, 1538884212443213196)
-2018/10/06 22:57:12.963459 [Failure Detected](172.22.158.96, 1538884255618504178)
-2018/10/06 22:57:39.253977 [Failure Detected](10.193.185.82, 1538884370872997000)
-2018/10/06 22:57:40.209842 [Failure Detected](172.22.156.98, 1538884212443213196)
-2018/10/06 22:57:57.235161 [Failure Detected](10.193.185.82, 1538884370872997000)
-2018/10/06 22:57:57.961417 [Failure Detected](10.193.185.82, 1538884370872997000)
-2018/10/06 22:57:58.160136 [Failure Detected](10.193.185.82, 1538884370872997000)
-2018/10/06 22:57:58.237876 [Failure Detected](10.193.185.82, 1538884370872997000)
-2018/10/06 22:57:58.281611 [Failure Detected](10.193.185.82, 1538884370872997000)
-2018/10/06 22:57:58.352931 [Failure Detected](10.193.185.82, 1538884370872997000)
-2018/10/06 22:58:00.628350 [Failure Detected](10.193.185.82, 0)
-2018/10/06 22:58:05.628733 [Failure Detected](10.193.185.82, 0)
-2018/10/06 22:58:10.629083 [Failure Detected](10.193.185.82, 0)
-2018/10/06 22:58:15.629470 [Failure Detected](10.193.185.82, 0)
-2018/10/06 23:17:15.579240 [Failure Detected](172.22.156.98, 1538885805420036457)
-2018/10/06 23:25:27.151470 [Failure Detected](172.22.154.98, 1538885815295645868)
+/home/kechenl3/go/src/ssms/ssms.log:179715:[INFO]: **172.22.156.95** 2018/10/06 22:53:57.505187 [Failure Detected](10.193.185.82, 1538884370872997000) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:181777:[INFO]: **172.22.156.95** 2018/10/06 22:55:49.535837 [Failure Detected](172.22.158.96, 1538884255618504178) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:183354:[INFO]: **172.22.156.95** 2018/10/06 22:57:12.381011 [Failure Detected](10.193.185.82, 1538884370872997000) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:183362:[INFO]: **172.22.156.95** 2018/10/06 22:57:12.748437 [Failure Detected](172.22.156.98, 1538884212443213196) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:183369:[INFO]: **172.22.156.95** 2018/10/06 22:57:12.963459 [Failure Detected](172.22.158.96, 1538884255618504178) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:183940:[INFO]: **172.22.156.95** 2018/10/06 22:57:39.253977 [Failure Detected](10.193.185.82, 1538884370872997000) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:183962:[INFO]: **172.22.156.95** 2018/10/06 22:57:40.209842 [Failure Detected](172.22.156.98, 1538884212443213196) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:184368:[INFO]: **172.22.156.95** 2018/10/06 22:57:57.235161 [Failure Detected](10.193.185.82, 1538884370872997000) Failed, detected by self
+/home/kechenl3/go/src/ssms/ssms.log:184394:[INFO]: **172.22.156.95** 2018/10/06 22:57:57.961417 [Failure Detected](10.193.185.82, 1538884370872997000) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:184401:[INFO]: **172.22.156.95** 2018/10/06 22:57:58.160136 [Failure Detected](10.193.185.82, 1538884370872997000) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:184405:[INFO]: **172.22.156.95** 2018/10/06 22:57:58.237876 [Failure Detected](10.193.185.82, 1538884370872997000) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:184412:[INFO]: **172.22.156.95** 2018/10/06 22:57:58.281611 [Failure Detected](10.193.185.82, 1538884370872997000) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:184417:[INFO]: **172.22.156.95** 2018/10/06 22:57:58.352931 [Failure Detected](10.193.185.82, 1538884370872997000) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:184466:[INFO]: **172.22.156.95** 2018/10/06 22:58:00.628350 [Failure Detected](10.193.185.82, 0) Failed, detected by self
+/home/kechenl3/go/src/ssms/ssms.log:184570:[INFO]: **172.22.156.95** 2018/10/06 22:58:05.628733 [Failure Detected](10.193.185.82, 0) Failed, detected by self
+/home/kechenl3/go/src/ssms/ssms.log:184663:[INFO]: **172.22.156.95** 2018/10/06 22:58:10.629083 [Failure Detected](10.193.185.82, 0) Failed, detected by self
+/home/kechenl3/go/src/ssms/ssms.log:184770:[INFO]: **172.22.156.95** 2018/10/06 22:58:15.629470 [Failure Detected](10.193.185.82, 0) Failed, detected by self
+/home/kechenl3/go/src/ssms/ssms.log:190053:[INFO]: **172.22.156.95** 2018/10/06 23:17:15.579240 [Failure Detected](172.22.156.98, 1538885805420036457) Failed, detected by others
+/home/kechenl3/go/src/ssms/ssms.log:198863:[INFO]: **172.22.156.95** 2018/10/06 23:25:27.151470 [Failure Detected](172.22.154.98, 1538885815295645868) Failed, detected by self
 /home/kechenl3/go/src/ssms/ssms.log:1330
-VMs: 10
-13767
-0.273 seconds
+Total Connected VMs: 10
+Total Counts: 13767
+Total Time: 0.242 seconds
+
 
 ```
 
