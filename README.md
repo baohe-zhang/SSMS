@@ -1,6 +1,6 @@
 # SSMS
 
-SSMS, Simple SWIM-like failure detector and Membership Service, for CS 425 MP2, implemented by Group#29 BaoheZhang&KechenLu.
+SSMS, Simple SWIM-like failure detector and Membership Service, for CS 425 MP2, implemented by Group#29 BaoheZhang&KechenLu, which includes infection-style dissemination, piggyback on membership messages, ping-ack failure detection with suspicion mechanism.
 
 ## Project Info
 
